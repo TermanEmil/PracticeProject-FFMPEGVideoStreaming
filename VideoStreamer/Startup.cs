@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
@@ -8,26 +9,42 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using ProcessStreamer;
 
 namespace VideoStreamer
 {
     public class Startup
     {
-        public Startup(IConfiguration configuration)
+		public IConfiguration Configuration { get; }
+		private StreamingProcManager procManager;
+
+		public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
+            
+			var ffmpegConfig = Configuration.GetSection("FFMPEGConfig")
+			                                .Get<FFMPEGConfig>();
+			var streamsConfig = new List<StreamConfig>();
+			Configuration.GetSection("StreamsConfig")
+			             .Bind(streamsConfig);
+			
+			procManager = new StreamingProcManager();
+			foreach (var streamCfg in streamsConfig)
+			{
+				procManager.StartChunking(ffmpegConfig, streamCfg);
+			}
         }
-
-        public IConfiguration Configuration { get; }
-
-        // This method gets called by the runtime. Use this method to add services to the container.
+        
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc();
         }
-
-        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+  
+        public void Configure(
+			IApplicationBuilder app,
+            IHostingEnvironment env,
+            ILoggerFactory loggerFactory,
+            IApplicationLifetime applicationLifetime)
         {
             if (env.IsDevelopment())
             {

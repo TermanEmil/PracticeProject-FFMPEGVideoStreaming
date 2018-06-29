@@ -34,6 +34,11 @@
     <None Remove="Chunks\National_Geographic\2018\06\28\23\43\23:43:09-0002800000.ts" />
     <None Remove="Chunks\National_Geographic\2018\06\28\23\43\23:43:12-0003200000.ts" />
     <None Remove="Chunks\national_geographic\2018\06\28\23\46\23:46:57-0005840000.ts" />
+    <None Remove="Chunks\national_geographic\2018\06\29\00\45\1530222321-0006000000.ts" />
+    <None Remove="Chunks\RadioMD\2018\06\29\13\16\1530267395-0006008111.ts" />
+    <None Remove="Chunks\RadioMD\2018\06\29\13\58\1530269893-0006008111.ts" />
+    <None Remove="Chunks\RadioMD\2018\06\29\13\58\1530269899-0006008111.ts" />
+    <None Remove="Chunks\RadioMD\2018\06\29\13\58\1530269905-0006008111.ts" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ProcessStreamer\ProcessStreamer.csproj" />

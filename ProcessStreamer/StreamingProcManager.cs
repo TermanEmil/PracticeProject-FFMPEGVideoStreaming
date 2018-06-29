@@ -22,7 +22,7 @@ namespace ProcessStreamer
 		{
 			var procInfo = new ProcessStartInfo();
 			procInfo.FileName = ffmpegConfig.BinaryPath;
-			streamConfig.Name = streamConfig.Name.ToLower();
+			streamConfig.Name = streamConfig.Name;
 
 			var segmentFilename =
 				ffmpegConfig.ChunkStorageDir + "/" +

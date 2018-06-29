@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
@@ -13,50 +14,34 @@ namespace VideoStreamer.Controllers
 	public class StreamerController : Controller
     {
 		private readonly FFMPEGConfig _ffmpegConfig;
+		private readonly List<StreamConfig> _streamsConfig;
 
 		public StreamerController(IConfiguration configuration)
 		{
 			_ffmpegConfig = configuration.GetSection("FFMPEGConfig")
                                             .Get<FFMPEGConfig>();
+			_streamsConfig = new List<StreamConfig>();
+            configuration.GetSection("StreamsConfig")
+                         .Bind(_streamsConfig);
 		}
 
-		[Route("LiveStream")]
-		[HttpGet("{chanel}")]
+		[Route("LiveStream/{chanel}/index.m3u8")]
 		public IActionResult LiveStream(string chanel)
 		{
-			var chanelRoot = string.Format(
-				"./{0}/{1}",
-				_ffmpegConfig.ChunkStorageDir,
-				chanel.ToLower());
+			var content = "";
 
-			if (!Directory.Exists(chanelRoot))
-				return NotFound();
-
-			int hlsLstSize = 5;
-			var content = String.Join("\n", new[]
+			try
 			{
-				"#EXTM3U",
-                "#EXT-X-VERSION:3",
-                "#EXT-X-TARGETDURATION:6",
-                "#EXT-X-MEDIA-SEQUENCE:0",
-			});
-
-			//var newestDir = string.Format(
-			//"{0}/{1}/{2}",
-			//DateTime.Ut.);
-			var lastModifTime = Directory.GetLastWriteTime(chanelRoot);
-			var newestDir =
-				$"{lastModifTime.Year}/" +
-				$"{lastModifTime.Month}/" +
-				$"{lastModifTime.Day}/" +
-				$"{lastModifTime.Hour}/" +
-				$"{lastModifTime.Minute}";
-
-            // get all possible files depending on the delta time, and get the latest n files or smth.
-
-			for (int i = 0; i < hlsLstSize; i++)
+				content = PlaylistGenerator.GeneratePlaylist(
+					chanel,
+					DateTime.Now,
+					_ffmpegConfig,
+					_streamsConfig
+				);
+			}
+			catch (Exception e)
 			{
-				
+				return new JsonResult(e.Message);
 			}
             
 			var bytes = Encoding.UTF8.GetBytes(content);
@@ -68,9 +53,32 @@ namespace VideoStreamer.Controllers
 			return result;
 		}
 
-		public IActionResult GetChunkFile()
+		[Route("LiveStream/{chanel}/{year}/{month}/{day}/{hour}/{minute}/{fileName}")]
+		public IActionResult GetChunkFile(
+			string chanel,
+			string year,
+			string month,
+			string day,
+			string hour,
+			string minute,
+			string fileName)
 		{
-			return null;
+			var path = Path.Combine(
+				_ffmpegConfig.ChunkStorageDir,
+				chanel,
+				year,
+				month,
+				day,
+				hour,
+				minute,
+				fileName
+			);         
+
+			if (!System.IO.File.Exists(path))
+				return NotFound();
+   
+			var bytes = System.IO.File.ReadAllBytes(path);         
+			return new FileContentResult(bytes, "video/vnd.dlna.mpeg-tts");
 		}
     }
 }

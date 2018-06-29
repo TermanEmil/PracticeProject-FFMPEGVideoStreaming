@@ -19,10 +19,9 @@ namespace VideoStreamer.Controllers
 		public StreamerController(IConfiguration configuration)
 		{
 			_ffmpegConfig = configuration.GetSection("FFMPEGConfig")
-                                            .Get<FFMPEGConfig>();
+                                         .Get<FFMPEGConfig>();
 			_streamsConfig = new List<StreamConfig>();
-            configuration.GetSection("StreamsConfig")
-                         .Bind(_streamsConfig);
+            configuration.GetSection("StreamsConfig").Bind(_streamsConfig);
 		}
 
 		[Route("LiveStream/{chanel}/index.m3u8")]
@@ -77,7 +76,10 @@ namespace VideoStreamer.Controllers
 			if (!System.IO.File.Exists(path))
 				return NotFound();
    
-			var bytes = System.IO.File.ReadAllBytes(path);         
+			var bytes = System.IO.File.ReadAllBytes(path);
+
+			Debug.WriteLine("RquestTSFile: " + fileName);
+
 			return new FileContentResult(bytes, "video/vnd.dlna.mpeg-tts");
 		}
     }

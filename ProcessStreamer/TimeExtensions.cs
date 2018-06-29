@@ -1,9 +1,10 @@
 ﻿using System;
+
 namespace ProcessStreamer
 {
-	public static class HelperExtensions
+	public static class TimeExtensions
     {
-		private readonly static DateTime unixEpoch =
+		public readonly static DateTime unixEpoch =
 			new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
 		public static int ToUnixTimeSeconds(this DateTime time)

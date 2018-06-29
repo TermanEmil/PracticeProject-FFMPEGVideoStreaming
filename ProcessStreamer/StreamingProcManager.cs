@@ -43,7 +43,7 @@ namespace ProcessStreamer
 			    "-f hls",
 			    "-hls_time " + streamConfig.ChunkTime,
 			    "-use_localtime 1 -use_localtime_mkdir 1",
-			    "-hls_flags second_level_segment_duration",
+				"-hls_flags second_level_segment_duration+second_level_segment_index",
 			    "-hls_segment_filename " + segmentFilename,
 			    m3u8File
 			});

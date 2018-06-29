@@ -12,17 +12,17 @@ namespace ProcessStreamer
 		public string fullPath;
 		public int timeSeconds;
 		public int millsDuration;
+		public int index;
 
 		public ChunkFile(string fullPath)
 		{
 			this.fullPath = fullPath;
 			var fileName = Path.GetFileName(fullPath);
-			var secondsStr = Regex.Match(fileName, @"\d+").Value;
-			this.timeSeconds = Int32.Parse(secondsStr);
 
-			var millStr = Regex.Match(fileName.Substring(secondsStr.Length), @"\d+")
-			                   .Value;
-			this.millsDuration = Int32.Parse(millStr);
+			var numbersStr = Regex.Split(fileName, @"\D+");
+			this.timeSeconds = int.Parse(numbersStr[0]);
+			this.millsDuration = int.Parse(numbersStr[1]);
+			this.index = int.Parse(numbersStr[2]);
 		}
 
 		public string GetMillisecondsStr()
@@ -53,58 +53,73 @@ namespace ProcessStreamer
 				ffmpegCfg.ChunkStorageDir,
                 chanel);
             
-			var minTime = time.AddSeconds(-streamCfg.ChunkTime * (hlsLstSize + 1));
-			var maxTime = time.AddSeconds(streamCfg.ChunkTime);
+			//var minTime = time.AddSeconds(-streamCfg.ChunkTime * (hlsLstSize + 1));
+			//var maxTime = time.AddSeconds(streamCfg.ChunkTime);
 
 			var possibleFiles = new List<ChunkFile>();
 			var checkedDirs = new HashSet<string>();
-
-			for (
-				var targetTime = maxTime;
-				targetTime >= minTime;
-				targetTime = targetTime.AddSeconds(-streamCfg.ChunkTime))
-            {
-                var dir =
-					chanelRoot +
-					$"{targetTime.Year}/" +
-					$"{targetTime.Month.ToString("00")}/" +
-					$"{targetTime.Day.ToString("00")}/" +
-					$"{targetTime.Hour.ToString("00")}/" +
-					$"{targetTime.Minute.ToString("00")}/";
+			var timeSecs = time.ToUnixTimeSeconds();
+			while (possibleFiles.Count() < hlsLstSize)
+			{
+				var dir =
+                    chanelRoot +
+					$"{time.Year}/" +
+					$"{time.Month.ToString("00")}/" +
+					$"{time.Day.ToString("00")}/" +
+					$"{time.Hour.ToString("00")}/" +
+					$"{time.Minute.ToString("00")}/";
 
 				if (checkedDirs.Contains(dir) || !Directory.Exists(dir))
-					continue;
-                
-				possibleFiles.AddRange(
-					Directory.GetFiles(dir).Select(x => new ChunkFile(x)));
+					break;
+
+				var files = Directory.GetFiles(dir)
+									 .Select(x => new ChunkFile(x));
+				                     //.Where(x => x.timeSeconds <= timeSecs);
+
+				possibleFiles.AddRange(files);            
 				checkedDirs.Add(dir);
-            }
+
+				var oldestFileSeconds = files.Max(x => x.timeSeconds);
+				time = TimeExtensions.unixEpoch
+				                     .AddSeconds(oldestFileSeconds)
+				                     .AddSeconds(-streamCfg.ChunkTime);
+			}
 
 			if (!possibleFiles.Any())
 				throw new Exception("No available files");
-
-			var timeSecs = time.ToUnixTimeSeconds();
-
-			possibleFiles = possibleFiles
-				.Where(x =>
-			                                    ////x.timeSeconds - streamCfg.ChunkTime < timeSecs &&
+            
+			possibleFiles = possibleFiles.Where(x =>
 			                                    x.millsDuration > 0)
-			                             .OrderBy(x => x.timeSeconds)
+			                             .OrderByDescending(x => x.timeSeconds)
 			                             .Take(hlsLstSize)
+			                             .OrderBy(x => x.timeSeconds)
 			                             .ToList();
-
+			
 			var content = String.Join("\n", new[]
             {
                 "#EXTM3U",
                 "#EXT-X-VERSION:3",
 				$"#EXT-X-TARGETDURATION:{streamCfg.ChunkTime}",
-                "#EXT-X-MEDIA-SEQUENCE:0\n",
+				$"#EXT-X-MEDIA-SEQUENCE:{possibleFiles[0].index}\n",
             });
 
+			ChunkFile lastFile = null;
 			foreach (var file in possibleFiles)
 			{
+				// Break if the difference is much biggere than Chunk time.
+				if (lastFile != null)
+				{
+					var seconcdsDiff = Math.Abs(
+						file.timeSeconds - lastFile.timeSeconds);
+
+					if (seconcdsDiff > streamCfg.ChunkTime * 1.1f)
+					    break;
+				}
+
 				content += $"#EXTINF:{file.GetMillisecondsStr()}," + "\n";
 				content += file.fullPath.Replace(chanelRoot, "") + "\n";
+
+				lastFile = file;
 			}
 
 			return content;

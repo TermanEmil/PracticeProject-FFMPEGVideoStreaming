@@ -39,6 +39,9 @@
     <None Remove="Chunks\RadioMD\2018\06\29\13\58\1530269893-0006008111.ts" />
     <None Remove="Chunks\RadioMD\2018\06\29\13\58\1530269899-0006008111.ts" />
     <None Remove="Chunks\RadioMD\2018\06\29\13\58\1530269905-0006008111.ts" />
+    <None Remove="Chunks\JurnalTV\2018\06\29\16\10\1530277804-0006000000.ts" />
+    <None Remove="Chunks\JurnalTV\2018\06\29\16\41\1530279665-0000640000.ts" />
+    <None Remove="Chunks\JurnalTV\2018\06\29\16\58\1530280732-0001320000-0000.ts" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ProcessStreamer\ProcessStreamer.csproj" />

@@ -25,7 +25,12 @@ namespace VideoStreamer.Controllers
 		}
 
 		[Route("LiveStream/{chanel}/index.m3u8")]
-		public IActionResult LiveStream(string chanel)
+		public async Task<IActionResult> LiveStreamAsync(string chanel)
+		{
+			return await Task.Run(() => LiveStream(chanel));
+		}
+
+		private IActionResult LiveStream(string chanel)
 		{
 			var content = "";
 
@@ -80,7 +85,9 @@ namespace VideoStreamer.Controllers
 
 			Debug.WriteLine("RquestTSFile: " + fileName);
 
-			return new FileContentResult(bytes, "video/vnd.dlna.mpeg-tts");
+			return new FileStreamResult(
+				System.IO.File.OpenRead(path),
+				"video/vnd.dlna.mpeg-tts");
 		}
     }
 }

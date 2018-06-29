@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -34,8 +35,8 @@ namespace ProcessStreamer
 		}
 	}
 
-    public class PlaylistGenerator
-    {
+	public static class PlaylistGenerator
+    {         
 		public static string GeneratePlaylist(
 			string chanel,
 			DateTime time,
@@ -43,126 +44,92 @@ namespace ProcessStreamer
 			IEnumerable<StreamConfig> streamsCfgs,
 			int hlsLstSize = 5)
 		{
-			var streamCfg = streamsCfgs.FirstOrDefault(x => x.Name == chanel);
-
+			var streamCfg = streamsCfgs.FirstOrDefault(x => x.Name == chanel);         
 			if (streamCfg == null)
 				throw new Exception("Not such chanel");
 
-			var chanelRoot = string.Format(
-                "./{0}/{1}/",
-				ffmpegCfg.ChunkStorageDir,
-                chanel);
+			var chanelRoot = $"{ffmpegCfg.ChunkStorageDir}/{chanel}/";
+			var targetTime = GetMinChunkTimeSpan(
+				hlsLstSize, streamCfg.ChunkTime, time, chanelRoot);
 
-			time = time.AddSeconds(-streamCfg.ChunkTime * 1.2f);
-			var timeSecs = time.Add(-DateTimeOffset.Now.Offset).ToUnixTimeSeconds();
+			var targetTimeS = targetTime.Add(-DateTimeOffset.Now.Offset)
+                                        .ToUnixTimeSeconds();         
+			var chunks =
+				Directory.GetFiles(chanelRoot, "*.ts", SearchOption.AllDirectories)
+			        .Select(x => new ChunkFile(x))
+			        .Where(x =>
+				           x.timeSeconds >= targetTimeS &&
+				           x.millsDuration > 0)
+			        .OrderBy(x => x.timeSeconds)
+                    .Take(hlsLstSize);
 
-			var dir = chanelRoot + GetDirOfDateTime(time);
-
-			if (!Directory.Exists(dir))
-				throw new Exception("No available files");
-
-			var files = Directory.GetFiles(dir)
-			                     .Select(x => new ChunkFile(x))
-			                     .ToArray();
-			var filtered = files.Where(
-				x => x.millsDuration > 0 &&
-				x.timeSeconds <= timeSecs &&
-				Math.Abs(x.timeSeconds - timeSecs) < streamCfg.ChunkTime * 1.2
-			).ToArray();
-            
-			if (filtered.Length == 0)
-				throw new Exception("No available files");
-
-			var closest = filtered.OrderBy(x => Math.Abs(x.timeSeconds - timeSecs))
-			                      .First();
-			
-			var refTime = TimeTools.SecondsToDateTime(closest.timeSeconds);
-			var chunks = new List<ChunkFile>(hlsLstSize);
-			var nextIndex = closest.index;
-
-			while (chunks.Count() < hlsLstSize)
+			var fileChunks = GetContinuousChunks(chunks).ToArray();         
+			if (fileChunks.Length == 0)
 			{
-				var chunksDir = chanelRoot + GetDirOfDateTime(refTime.Add(DateTimeOffset.Now.Offset));
-
-				if (!Directory.Exists(chunksDir))
-					break;
-
-				var dirChunks = Directory.GetFiles(chunksDir)
-				                         .Select(x => new ChunkFile(x))
-				                         .OrderBy(x => x.index)
-										 .ToArray();
-				
-				if (dirChunks.Length == 0)
-				{
-					break;
-				}
-				
-				bool endOfFiles = false;
-				while (nextIndex >= 0 && chunks.Count() < hlsLstSize)
-				{
-					var targetFile = dirChunks.FirstOrDefault(x => x.index == nextIndex);
-                    
-					if (targetFile == null)
-					{
-						refTime = refTime.AddMinutes(-1);
-						break;
-					}
-
-					if (targetFile == null || targetFile.millsDuration <= 0)
-					{
-						endOfFiles = true;
-						break;
-					}
-
-					chunks.Add(targetFile);
-
-					refTime = TimeTools.SecondsToDateTime(targetFile.timeSeconds);
-					nextIndex = targetFile.index - 1;
-				}
-                
-				if (nextIndex < 0 || endOfFiles)
-					break;
-			}         
-			         
-			if (!chunks.Any())
 				throw new Exception("No available files");
-                    
-			if (chunks.Count() != hlsLstSize)
-			{
-				var a = 1;
-				throw new Exception($"{DateTime.Now.ToUnixTimeSeconds()}Invalid nb of chunks: {chunks.Count}/{hlsLstSize}");
 			}
-				
-
+   
 			var content = String.Join("\n", new[]
             {
                 "#EXTM3U",
                 "#EXT-X-VERSION:3",
 				$"#EXT-X-TARGETDURATION:{streamCfg.ChunkTime}",
-				$"#EXT-X-MEDIA-SEQUENCE:{chunks[0].index}\n",
+                $"#EXT-X-MEDIA-SEQUENCE:{fileChunks[0].index}\n"
             });
-
-			ChunkFile lastFile = null;
-			foreach (var file in chunks.OrderBy(x => x.index))
-			{
-				// Break if the difference is much biggere than Chunk time.
-				if (lastFile != null)
-				{
-					var seconcdsDiff = Math.Abs(
-						file.timeSeconds - lastFile.timeSeconds);
-
-					if (seconcdsDiff > streamCfg.ChunkTime * 1.1f)
-					    break;
-				}
-
-				content += $"#EXTINF:{file.GetMillisecondsStr()}," + "\n";
-				content += file.fullPath.Replace(chanelRoot, "") + "\n";
-
-				lastFile = file;
-			}
-
+            
+			foreach (var file in fileChunks)
+            {
+                content += $"#EXTINF:{file.GetMillisecondsStr()}," + "\n";
+                content += file.fullPath.Replace(chanelRoot, "") + "\n";
+            }
+            
 			return content;
 		}
+
+        /// <summary>
+        /// Get the closest possible time to the target time, depending
+		/// on the number of chunks and the newest file.
+		/// If it's live, then the newest file - (n + 1) * chunkTime will
+		/// be returned. Note +1 because the newest is still being created.
+		/// 
+		/// Otherwise, the received time is returned.
+        /// </summary>
+		private static DateTime GetMinChunkTimeSpan(
+            int chunksCount,
+            double chunkTime,
+            DateTime targetTime,
+            string chunksRoot)
+        {
+            var mostRecent =
+                Directory.GetFiles(chunksRoot, "*.ts", SearchOption.AllDirectories)
+                         .OrderByDescending(File.GetLastWriteTime)
+                         .First();
+
+            var newestChunk = new ChunkFile(mostRecent);
+            var newestDateTime = TimeTools
+                .SecondsToDateTime(newestChunk.timeSeconds)
+                .Add(DateTimeOffset.Now.Offset);
+
+            var totalRequiredSec = (chunksCount + 1) * chunkTime;
+            if (targetTime.AddSeconds(totalRequiredSec) > newestDateTime)
+                return newestDateTime.AddSeconds(-totalRequiredSec);
+            else
+                return targetTime;
+        }
+
+		private static IEnumerable<ChunkFile> GetContinuousChunks(
+            IEnumerable<ChunkFile> chunks)
+        {
+            ChunkFile lastChunk = null;
+            foreach (var chunk in chunks)
+            {
+                if (lastChunk != null && chunk.index - lastChunk.index != 1)
+                    yield break;
+                else
+                    yield return chunk;
+                lastChunk = chunk;
+            }
+        }
 
 		private static string GetDirOfDateTime(DateTime time)
 		{

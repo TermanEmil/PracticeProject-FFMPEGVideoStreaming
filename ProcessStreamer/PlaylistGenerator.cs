@@ -52,59 +52,98 @@ namespace ProcessStreamer
                 "./{0}/{1}/",
 				ffmpegCfg.ChunkStorageDir,
                 chanel);
+
+			time = time.AddSeconds(-streamCfg.ChunkTime * 1.2f);
+			var timeSecs = time.Add(-DateTimeOffset.Now.Offset).ToUnixTimeSeconds();
+
+			var dir = chanelRoot + GetDirOfDateTime(time);
+
+			if (!Directory.Exists(dir))
+				throw new Exception("No available files");
+
+			var files = Directory.GetFiles(dir)
+			                     .Select(x => new ChunkFile(x))
+			                     .ToArray();
+			var filtered = files.Where(
+				x => x.millsDuration > 0 &&
+				x.timeSeconds <= timeSecs &&
+				Math.Abs(x.timeSeconds - timeSecs) < streamCfg.ChunkTime * 1.2
+			).ToArray();
             
-			//var minTime = time.AddSeconds(-streamCfg.ChunkTime * (hlsLstSize + 1));
-			//var maxTime = time.AddSeconds(streamCfg.ChunkTime);
+			if (filtered.Length == 0)
+				throw new Exception("No available files");
 
-			var possibleFiles = new List<ChunkFile>();
-			var checkedDirs = new HashSet<string>();
-			var timeSecs = time.ToUnixTimeSeconds();
-			while (possibleFiles.Count() < hlsLstSize)
+			var closest = filtered.OrderBy(x => Math.Abs(x.timeSeconds - timeSecs))
+			                      .First();
+			
+			var refTime = TimeTools.SecondsToDateTime(closest.timeSeconds);
+			var chunks = new List<ChunkFile>(hlsLstSize);
+			var nextIndex = closest.index;
+
+			while (chunks.Count() < hlsLstSize)
 			{
-				var dir =
-                    chanelRoot +
-					$"{time.Year}/" +
-					$"{time.Month.ToString("00")}/" +
-					$"{time.Day.ToString("00")}/" +
-					$"{time.Hour.ToString("00")}/" +
-					$"{time.Minute.ToString("00")}/";
+				var chunksDir = chanelRoot + GetDirOfDateTime(refTime.Add(DateTimeOffset.Now.Offset));
 
-				if (checkedDirs.Contains(dir) || !Directory.Exists(dir))
+				if (!Directory.Exists(chunksDir))
 					break;
 
-				var files = Directory.GetFiles(dir)
-									 .Select(x => new ChunkFile(x));
-				                     //.Where(x => x.timeSeconds <= timeSecs);
+				var dirChunks = Directory.GetFiles(chunksDir)
+				                         .Select(x => new ChunkFile(x))
+				                         .OrderBy(x => x.index)
+										 .ToArray();
+				
+				if (dirChunks.Length == 0)
+				{
+					break;
+				}
+				
+				bool endOfFiles = false;
+				while (nextIndex >= 0 && chunks.Count() < hlsLstSize)
+				{
+					var targetFile = dirChunks.FirstOrDefault(x => x.index == nextIndex);
+                    
+					if (targetFile == null)
+					{
+						refTime = refTime.AddMinutes(-1);
+						break;
+					}
 
-				possibleFiles.AddRange(files);            
-				checkedDirs.Add(dir);
+					if (targetFile == null || targetFile.millsDuration <= 0)
+					{
+						endOfFiles = true;
+						break;
+					}
 
-				var oldestFileSeconds = files.Max(x => x.timeSeconds);
-				time = TimeExtensions.unixEpoch
-				                     .AddSeconds(oldestFileSeconds)
-				                     .AddSeconds(-streamCfg.ChunkTime);
-			}
+					chunks.Add(targetFile);
 
-			if (!possibleFiles.Any())
+					refTime = TimeTools.SecondsToDateTime(targetFile.timeSeconds);
+					nextIndex = targetFile.index - 1;
+				}
+                
+				if (nextIndex < 0 || endOfFiles)
+					break;
+			}         
+			         
+			if (!chunks.Any())
 				throw new Exception("No available files");
-            
-			possibleFiles = possibleFiles.Where(x =>
-			                                    x.millsDuration > 0)
-			                             .OrderByDescending(x => x.timeSeconds)
-			                             .Take(hlsLstSize)
-			                             .OrderBy(x => x.timeSeconds)
-			                             .ToList();
-			
+                    
+			if (chunks.Count() != hlsLstSize)
+			{
+				var a = 1;
+				throw new Exception($"{DateTime.Now.ToUnixTimeSeconds()}Invalid nb of chunks: {chunks.Count}/{hlsLstSize}");
+			}
+				
+
 			var content = String.Join("\n", new[]
             {
                 "#EXTM3U",
                 "#EXT-X-VERSION:3",
 				$"#EXT-X-TARGETDURATION:{streamCfg.ChunkTime}",
-				$"#EXT-X-MEDIA-SEQUENCE:{possibleFiles[0].index}\n",
+				$"#EXT-X-MEDIA-SEQUENCE:{chunks[0].index}\n",
             });
 
 			ChunkFile lastFile = null;
-			foreach (var file in possibleFiles)
+			foreach (var file in chunks.OrderBy(x => x.index))
 			{
 				// Break if the difference is much biggere than Chunk time.
 				if (lastFile != null)
@@ -123,6 +162,16 @@ namespace ProcessStreamer
 			}
 
 			return content;
+		}
+
+		private static string GetDirOfDateTime(DateTime time)
+		{
+			return
+				$"{time.Year}/" +
+				$"{time.Month.ToString("00")}/" +
+				$"{time.Day.ToString("00")}/" +
+				$"{time.Hour.ToString("00")}/" +
+				$"{time.Minute.ToString("00")}/";
 		}
     }
 }

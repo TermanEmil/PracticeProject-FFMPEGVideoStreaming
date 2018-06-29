@@ -7,7 +7,14 @@ namespace ProcessStreamer
 {
     public class StreamingProcManager
     {
-		private List<Process> processes = new List<Process>();
+		public static StreamingProcManager instance;
+
+		public List<Process> processes = new List<Process>();
+
+		public StreamingProcManager()
+		{
+			instance = this;
+		}
 
 		public void StartChunking(
 			FFMPEGConfig ffmpegConfig,
@@ -15,34 +22,32 @@ namespace ProcessStreamer
 		{
 			var procInfo = new ProcessStartInfo();
 			procInfo.FileName = ffmpegConfig.BinaryPath;
+			streamConfig.Name = streamConfig.Name.ToLower();
 
 			var segmentFilename =
-				"Chunks/" +
-				streamConfig.Name + "/" +
+				ffmpegConfig.ChunkStorageDir + "/" +
+	            streamConfig.Name + "/" +
 				ffmpegConfig.SegmentFilename;
 
 			var m3u8File =
-				"Chunks/" +
+				ffmpegConfig.ChunkStorageDir + "/" +
 	            streamConfig.Name + "/" +
 				"index.m3u8";
-
-			procInfo.Arguments = string.Join(
-    			" ",
-    			new[]
-    			{
-    			    "-y -re",
-				    "-i " + streamConfig.Link,
-				    "-map 0",
-				    "-codec:v copy -codec:a copy",
-				    "-f hls",
-				    ffmpegConfig.BaseUrl == "" ? "" : "-hls_base_url " + ffmpegConfig.BaseUrl,
-				    "-hls_time " + streamConfig.ChunkTime,
-				    "-use_localtime 1 -use_localtime_mkdir 1",
-				    "-hls_segment_filename " + segmentFilename,
-				    m3u8File
-    			}
-		    );
-
+                     
+			procInfo.Arguments = string.Join(" ", new[]
+			{
+			    "-y -re",
+			    "-i " + streamConfig.Link,
+			    "-map 0",
+			    "-codec:v copy -codec:a copy",
+			    "-f hls",
+			    "-hls_time " + streamConfig.ChunkTime,
+			    "-use_localtime 1 -use_localtime_mkdir 1",
+			    "-hls_flags second_level_segment_duration",
+			    "-hls_segment_filename " + segmentFilename,
+			    m3u8File
+			});
+   
 			var proc = new Process();
 			proc.StartInfo = procInfo;
             proc.Start();

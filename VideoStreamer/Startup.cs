@@ -50,7 +50,6 @@ namespace VideoStreamer
             {
                 app.UseDeveloperExceptionPage();
             }
-
             app.UseMvc();
         }
     }

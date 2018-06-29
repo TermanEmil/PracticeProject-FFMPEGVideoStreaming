@@ -8,6 +8,9 @@
     <Folder Include="wwwroot\" />
     <Folder Include="Models\" />
     <Folder Include="Models\StreamerModels\" />
+    <Folder Include="Views\" />
+    <Folder Include="Views\ProcMonitor\" />
+    <Folder Include="Models\ProcMonitorViewModels\" />
   </ItemGroup>
 
   <ItemGroup>
@@ -24,6 +27,13 @@
     <None Remove="videos\file001.ts" />
     <None Remove="videos\file003.ts" />
     <None Remove="videos\file004.ts" />
+    <None Remove="Chunks\RadioMD\2018\06\28\1530192304.ts" />
+    <None Remove="Chunks\RadioMD\2018\06\28\1530192306.ts" />
+    <None Remove="Chunks\RadioMD\2018\06\28\1530192308.ts" />
+    <None Remove="Chunks\National_Geographic\2018\06\28\23\43\23:43:06-0003640000.ts" />
+    <None Remove="Chunks\National_Geographic\2018\06\28\23\43\23:43:09-0002800000.ts" />
+    <None Remove="Chunks\National_Geographic\2018\06\28\23\43\23:43:12-0003200000.ts" />
+    <None Remove="Chunks\national_geographic\2018\06\28\23\46\23:46:57-0005840000.ts" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ProcessStreamer\ProcessStreamer.csproj" />

@@ -51,7 +51,7 @@ namespace VideoStreamer.Controllers
 		{
 			var content = "";
 
-			//try
+			try
 			{
 				content = PlaylistGenerator.GeneratePlaylist(
 					chanel,
@@ -60,9 +60,9 @@ namespace VideoStreamer.Controllers
 					_streamsConfig
 				);
 			}
-			//catch (Exception e)
+			catch (Exception e)
 			{
-				//return new JsonResult(e.Message);
+				return new JsonResult(e.Message);
 			}
             
 			var bytes = Encoding.UTF8.GetBytes(content);

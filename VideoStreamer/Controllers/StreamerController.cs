@@ -10,7 +10,6 @@ using ProcessStreamer;
 
 namespace VideoStreamer.Controllers
 {
-	[Route("api/[controller]")]
 	public class StreamerController : Controller
     {
 		private readonly FFMPEGConfig _ffmpegConfig;
@@ -24,13 +23,30 @@ namespace VideoStreamer.Controllers
             configuration.GetSection("StreamsConfig").Bind(_streamsConfig);
 		}
 
-		[Route("LiveStream/{chanel}/index.m3u8")]
+		[Route("api/LiveStream/{chanel}/index.m3u8")]
 		public async Task<IActionResult> LiveStreamAsync(string chanel)
 		{
-			return await Task.Run(() => LiveStream(chanel));
+			var time = DateTime.Now;
+			return await Task.Run(
+				() => GetPlaylistActionResult(chanel, time));
 		}
 
-		private IActionResult LiveStream(string chanel)
+		[Route("api/TimeShift/{chanel}/index_now-{timeShiftMills}.m3u8")]
+        public async Task<IActionResult> TimeShiftStreamAsync(
+			string chanel,
+			int timeShiftMills)
+        {
+			var timeNow = DateTime.Now;
+			var time = timeNow;
+			if (timeShiftMills > 0)
+				time = time.AddMilliseconds(-timeShiftMills);
+   
+            return await Task.Run(() => GetPlaylistActionResult(chanel, time));
+        }
+
+		private IActionResult GetPlaylistActionResult(
+			string chanel,
+			DateTime time)
 		{
 			var content = "";
 
@@ -38,7 +54,7 @@ namespace VideoStreamer.Controllers
 			{
 				content = PlaylistGenerator.GeneratePlaylist(
 					chanel,
-					DateTime.Now,
+					time,
 					_ffmpegConfig,
 					_streamsConfig
 				);

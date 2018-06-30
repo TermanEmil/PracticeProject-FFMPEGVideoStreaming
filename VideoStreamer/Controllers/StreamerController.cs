@@ -10,6 +10,7 @@ using ProcessStreamer;
 
 namespace VideoStreamer.Controllers
 {
+	[Route("api")]
 	public class StreamerController : Controller
     {
 		private readonly FFMPEGConfig _ffmpegConfig;
@@ -23,7 +24,7 @@ namespace VideoStreamer.Controllers
             configuration.GetSection("StreamsConfig").Bind(_streamsConfig);
 		}
 
-		[Route("api/LiveStream/{chanel}/index.m3u8")]
+		[Route("LiveStream/{chanel}/index.m3u8")]
 		public async Task<IActionResult> LiveStreamAsync(string chanel)
 		{
 			var time = DateTime.Now;
@@ -31,7 +32,7 @@ namespace VideoStreamer.Controllers
 				() => GetPlaylistActionResult(chanel, time));
 		}
 
-		[Route("api/TimeShift/{chanel}/index_now-{timeShiftMills}.m3u8")]
+		[Route("TimeShift/{chanel}/index_now-{timeShiftMills}.m3u8")]
         public async Task<IActionResult> TimeShiftStreamAsync(
 			string chanel,
 			int timeShiftMills)
@@ -50,7 +51,7 @@ namespace VideoStreamer.Controllers
 		{
 			var content = "";
 
-			try
+			//try
 			{
 				content = PlaylistGenerator.GeneratePlaylist(
 					chanel,
@@ -59,9 +60,9 @@ namespace VideoStreamer.Controllers
 					_streamsConfig
 				);
 			}
-			catch (Exception e)
+			//catch (Exception e)
 			{
-				return new JsonResult(e.Message);
+				//return new JsonResult(e.Message);
 			}
             
 			var bytes = Encoding.UTF8.GetBytes(content);
@@ -73,8 +74,9 @@ namespace VideoStreamer.Controllers
 			return result;
 		}
 
-		[Route("LiveStream/{chanel}/{year}/{month}/{day}/{hour}/{minute}/{fileName}")]
+		[Route("{mode}/{chanel}/{year}/{month}/{day}/{hour}/{minute}/{fileName}")]
 		public IActionResult GetChunkFile(
+			string mode,
 			string chanel,
 			string year,
 			string month,
@@ -96,11 +98,7 @@ namespace VideoStreamer.Controllers
 
 			if (!System.IO.File.Exists(path))
 				return NotFound();
-   
-			var bytes = System.IO.File.ReadAllBytes(path);
-
-			Debug.WriteLine("RquestTSFile: " + fileName);
-
+			
 			return new FileStreamResult(
 				System.IO.File.OpenRead(path),
 				"video/vnd.dlna.mpeg-tts");

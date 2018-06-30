@@ -53,12 +53,13 @@ namespace ProcessStreamer
 				hlsLstSize, streamCfg.ChunkTime, time, chanelRoot);
 
 			var targetTimeS = targetTime.Add(-DateTimeOffset.Now.Offset)
-                                        .ToUnixTimeSeconds();         
+                                        .ToUnixTimeSeconds();
+			
 			var chunks =
 				Directory.GetFiles(chanelRoot, "*.ts", SearchOption.AllDirectories)
 			        .Select(x => new ChunkFile(x))
 			        .Where(x =>
-				           x.timeSeconds >= targetTimeS &&
+				           x.timeSeconds >= targetTimeS - streamCfg.ChunkTime &&
 				           x.millsDuration > 0)
 			        .OrderBy(x => x.timeSeconds)
                     .Take(hlsLstSize);
@@ -74,8 +75,10 @@ namespace ProcessStreamer
                 "#EXTM3U",
                 "#EXT-X-VERSION:3",
 				$"#EXT-X-TARGETDURATION:{streamCfg.ChunkTime}",
-                $"#EXT-X-MEDIA-SEQUENCE:{fileChunks[0].index}\n"
+                $"#EXT-X-MEDIA-SEQUENCE:{fileChunks[0].index}",
+				$"#RequestTime:{targetTimeS},"
             });
+			content += "\n";
             
 			foreach (var file in fileChunks)
             {
@@ -111,10 +114,14 @@ namespace ProcessStreamer
                 .Add(DateTimeOffset.Now.Offset);
 
             var totalRequiredSec = (chunksCount + 1) * chunkTime;
-            if (targetTime.AddSeconds(totalRequiredSec) > newestDateTime)
-                return newestDateTime.AddSeconds(-totalRequiredSec);
-            else
-                return targetTime;
+			if (targetTime.AddSeconds(totalRequiredSec) > newestDateTime)
+			{
+				return newestDateTime.AddSeconds(-totalRequiredSec);
+			}
+			else
+			{
+				return targetTime;
+			}
         }
 
 		private static IEnumerable<ChunkFile> GetContinuousChunks(

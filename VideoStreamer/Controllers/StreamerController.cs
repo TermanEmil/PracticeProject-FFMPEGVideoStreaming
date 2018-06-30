@@ -25,29 +25,34 @@ namespace VideoStreamer.Controllers
 		}
 
 		[Route("LiveStream/{chanel}/index.m3u8")]
-		public async Task<IActionResult> LiveStreamAsync(string chanel)
+		public async Task<IActionResult> LiveStreamAsync(
+			string chanel,
+		    int listSize = 5)
 		{
 			var time = DateTime.Now;
 			return await Task.Run(
-				() => GetPlaylistActionResult(chanel, time));
+				() => GetPlaylistActionResult(chanel, time, listSize));
 		}
 
-		[Route("TimeShift/{chanel}/index_now-{timeShiftMills}.m3u8")]
+		[Route("TimeShift/{chanel}/{timeShiftMills}/index.m3u8")]
         public async Task<IActionResult> TimeShiftStreamAsync(
 			string chanel,
-			int timeShiftMills)
+			int timeShiftMills,
+			int listSize = 5)
         {
 			var timeNow = DateTime.Now;
 			var time = timeNow;
 			if (timeShiftMills > 0)
 				time = time.AddMilliseconds(-timeShiftMills);
    
-            return await Task.Run(() => GetPlaylistActionResult(chanel, time));
+            return await Task.Run(
+				() => GetPlaylistActionResult(chanel, time, listSize));
         }
 
 		private IActionResult GetPlaylistActionResult(
 			string chanel,
-			DateTime time)
+			DateTime time,
+		    int hlsListSize)
 		{
 			var content = "";
 
@@ -57,7 +62,8 @@ namespace VideoStreamer.Controllers
 					chanel,
 					time,
 					_ffmpegConfig,
-					_streamsConfig
+					_streamsConfig,
+					hlsListSize
 				);
 			}
 			catch (Exception e)

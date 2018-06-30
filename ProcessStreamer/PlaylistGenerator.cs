@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Configuration;
+using MoreLinq;
 
 namespace ProcessStreamer
 {
@@ -46,15 +47,19 @@ namespace ProcessStreamer
 		{
 			var streamCfg = streamsCfgs.FirstOrDefault(x => x.Name == chanel);         
 			if (streamCfg == null)
-				throw new Exception("Not such chanel");
+				throw new Exception("No such chanel");
 
 			var chanelRoot = $"{ffmpegCfg.ChunkStorageDir}/{chanel}/";
+			var timer1 = new Stopwatch();
+			var timer2 = new Stopwatch();
+
+			timer2.Start();
 			var targetTime = GetMinChunkTimeSpan(
 				hlsLstSize, streamCfg.ChunkTime, time, chanelRoot);
-
+			timer2.Stop();
 			var targetTimeS = targetTime.Add(-DateTimeOffset.Now.Offset)
                                         .ToUnixTimeSeconds();
-			
+			timer1.Start();
 			var chunks =
 				Directory.GetFiles(chanelRoot, "*.ts", SearchOption.AllDirectories)
 			        .Select(x => new ChunkFile(x))
@@ -69,13 +74,15 @@ namespace ProcessStreamer
 			{
 				throw new Exception("No available files");
 			}
-   
+
+			timer1.Stop();
 			var content = String.Join("\n", new[]
             {
                 "#EXTM3U",
                 "#EXT-X-VERSION:3",
 				$"#EXT-X-TARGETDURATION:{streamCfg.ChunkTime}",
                 $"#EXT-X-MEDIA-SEQUENCE:{fileChunks[0].index}",
+				$"#Stopwatch:{timer1.Elapsed.TotalMilliseconds}/{timer2.Elapsed.TotalMilliseconds}",
 				$"#RequestTime:{targetTimeS},"
             });
 			content += "\n";
@@ -103,10 +110,10 @@ namespace ProcessStreamer
             DateTime targetTime,
             string chunksRoot)
         {
-            var mostRecent =
-                Directory.GetFiles(chunksRoot, "*.ts", SearchOption.AllDirectories)
-                         .OrderByDescending(File.GetLastWriteTime)
-                         .First();
+			var mostRecent =
+				Directory.GetFiles(chunksRoot, "*.ts", SearchOption.AllDirectories)
+				         .OrderByDescending(File.GetLastWriteTime)
+				         .First();
 
             var newestChunk = new ChunkFile(mostRecent);
             var newestDateTime = TimeTools

@@ -8,6 +8,7 @@ namespace ProcessStreamer
     public class StreamingProcManager
     {
 		public static StreamingProcManager instance;
+        public static UInt64 _bytes;
 
 		public List<Process> processes = new List<Process>();
 

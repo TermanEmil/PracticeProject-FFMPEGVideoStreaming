@@ -38,6 +38,8 @@ namespace VideoStreamer
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc();
+            services.AddDistributedMemoryCache();
+            services.AddSession();
         }
   
         public void Configure(
@@ -51,6 +53,7 @@ namespace VideoStreamer
                 app.UseDeveloperExceptionPage();
             }
             app.UseMvc();
+            app.UseSession();
         }
     }
 }

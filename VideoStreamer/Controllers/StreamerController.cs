@@ -10,7 +10,7 @@ using ProcessStreamer;
 
 namespace VideoStreamer.Controllers
 {
-	[Route("api")]
+    [Route("api")]
 	public class StreamerController : Controller
     {
 		private readonly FFMPEGConfig _ffmpegConfig;
@@ -76,6 +76,7 @@ namespace VideoStreamer.Controllers
 			{
 				FileDownloadName = "index.m3u8"
 			};
+            Console.WriteLine("Requested .m3u8 {0}", DateTime.Now);
 
 			return result;
 		}
@@ -105,6 +106,7 @@ namespace VideoStreamer.Controllers
 			if (!System.IO.File.Exists(path))
 				return NotFound();
 			
+            Console.WriteLine("Requested TsFile {0} -> {1}", DateTime.Now, path);
 			return new FileStreamResult(
 				System.IO.File.OpenRead(path),
 				"video/vnd.dlna.mpeg-tts");

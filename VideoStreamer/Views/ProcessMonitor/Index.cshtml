@@ -1,0 +1,39 @@
+﻿@model VideoStreamer.Models.LivePlayerViewModels.ProcessMonitorView
+
+
+<!DOCTYPE html>
+<html>
+<body>
+
+<style>
+  div.ex1 {
+    width: 300px;
+    overflow-x: scroll;
+    display:inline-block;
+    white-space: nowrap;
+}
+</style>
+<h2 style="text-align : center">Activity Monitor</h2>
+
+<table style="width:100%">
+  <tr>
+    <th>PID</th>
+    <th>Machine Name</th> 
+    <th>StartTime</th>
+    <th>Time+</th>
+    <th>Command</th>
+  </tr>
+    @foreach (var x in @Model._StreamingProcesses)
+    {
+      <tr>
+      <td style="text-align : center"; >@x.Id </td>
+      <td style="text-align : center"; >>@x.MachineName </td>
+      <td style="text-align : center"; >@x.StartTime</td>
+      <td style="text-align : center";> @x.PrivilegedProcessorTime</td>
+      <td ><div class = "ex1">@(x.StartInfo.FileName + " " + x.StartInfo.Arguments)</div> </td>
+
+      </tr>
+    }
+</table>
+</body>
+</html>

@@ -4,18 +4,18 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using ProcessStreamer;
-using VideoStreamer.Models.ProcMonitorViewModels;
+using VideoStreamer.Models.LivePlayerViewModels;
 
 // For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
 namespace VideoStreamer.Controllers
 {
-	[Route("api/[controller]")]
-    public class ProcMonitorController : Controller
+    [Route("api/[controller]/{chanel}")]
+    public class LivePlayerController : Controller
     {
-        public IActionResult Index()
+        public IActionResult Index(string chanel)
         {         
-			var data = new ProcMonitorViewModel
+            var data = new LivePlayerView
 			{
 				SomeData = StreamingProcManager.instance.processes[0].ProcessName
 			};

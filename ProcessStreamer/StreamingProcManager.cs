@@ -15,9 +15,13 @@ namespace ProcessStreamer
 
 		public List<Process> processes = new List<Process>();
 
+		private StreamWriter logFile;
+
 		public StreamingProcManager()
 		{
 			instance = this;
+			var fileStream = new FileStream("logFile.log", FileMode.Create);
+			logFile = new StreamWriter(fileStream);
 		}
 
 		public void StartChunking(
@@ -53,7 +57,10 @@ namespace ProcessStreamer
 			    "-hls_segment_filename " + segmentFilename,
 			    m3u8File
 			});
-   
+
+			procInfo.RedirectStandardOutput = true;
+			procInfo.RedirectStandardError = true;
+
 			var proc = new Process();
 			proc.StartInfo = procInfo;
 			proc.EnableRaisingEvents = true;
@@ -63,13 +70,30 @@ namespace ProcessStreamer
 				processes.Remove(o as Process);
 				var lastID = GetLastProducedIndex(ffmpegConfig, streamConfig);
 				StartChunking(ffmpegConfig, streamConfig, lastID + 1);
+
+				logFile.WriteLine("[Restarted]: " + streamConfig.Name);
 			};
 
+			proc.ErrorDataReceived += OutputErrDataReceived;
+			proc.OutputDataReceived += OutputDataReceived;
+
 			proc.Start();
-            
+			proc.BeginOutputReadLine();
+			proc.BeginErrorReadLine();
+
 			processes.Add(proc);         
 			proc.WaitForExit();
 		}
+
+		private void OutputDataReceived(object sender, DataReceivedEventArgs e)
+		{
+			logFile.WriteLine(e.Data);
+		}
+
+		private void OutputErrDataReceived(object sender, DataReceivedEventArgs e)
+        {
+			logFile.WriteLine("<[Error]>: " + e.Data);
+        }
 
 		private int GetLastProducedIndex(
 			FFMPEGConfig ffmpegCfg,

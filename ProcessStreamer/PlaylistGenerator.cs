@@ -50,16 +50,12 @@ namespace ProcessStreamer
 				throw new Exception("No such chanel");
 
 			var chanelRoot = $"{ffmpegCfg.ChunkStorageDir}/{chanel}/";
-			var timer1 = new Stopwatch();
-			var timer2 = new Stopwatch();
 
-			timer2.Start();
 			var targetTime = GetMinChunkTimeSpan(
 				hlsLstSize, streamCfg.ChunkTime, time, chanelRoot);
-			timer2.Stop();
+
 			var targetTimeS = targetTime.Add(-DateTimeOffset.Now.Offset)
                                         .ToUnixTimeSeconds();
-			timer1.Start();
 			var chunks =
 				Directory.GetFiles(chanelRoot, "*.ts", SearchOption.AllDirectories)
 			        .Select(x => new ChunkFile(x))
@@ -69,23 +65,25 @@ namespace ProcessStreamer
 			        .OrderBy(x => x.timeSeconds)
                     .Take(hlsLstSize);
 
-			var fileChunks = GetContinuousChunks(chunks).ToArray();         
-			if (fileChunks.Length == 0)
+			var fileChunks = GetContinuousChunks(chunks).ToArray();
+			if (fileChunks.Length < hlsLstSize)
 			{
-				throw new Exception("No available files");
+				throw new Exception(string.Format(
+					"No available files: {0}/{1}",
+					fileChunks.Length,
+					hlsLstSize));
 			}
 
-			timer1.Stop();
 			var content = String.Join("\n", new[]
             {
                 "#EXTM3U",
                 "#EXT-X-VERSION:3",
 				$"#EXT-X-TARGETDURATION:{streamCfg.ChunkTime}",
                 $"#EXT-X-MEDIA-SEQUENCE:{fileChunks[0].index}",
-				$"#Stopwatch:{timer1.Elapsed.TotalMilliseconds}/{timer2.Elapsed.TotalMilliseconds}",
-				$"#RequestTime:{targetTimeS},"
+				//$"#Stopwatch:{timer1.Elapsed.TotalMilliseconds}/{timer2.Elapsed.TotalMilliseconds}",
+				//$"#RequestTime:{targetTimeS}"
             });
-			content += "\n";
+			content += ",\n";
             
 			foreach (var file in fileChunks)
             {

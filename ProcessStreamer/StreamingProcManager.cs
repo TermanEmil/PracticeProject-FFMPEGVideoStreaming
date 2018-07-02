@@ -51,7 +51,9 @@ namespace ProcessStreamer
    
 			var proc = new Process();
 			proc.StartInfo = procInfo;
-            proc.Start();
+			proc.Exited += (o, s) => StartChunking(ffmpegConfig, streamConfig);
+			proc.Start();
+
 
 			processes.Add(proc);
 		}

@@ -24,30 +24,20 @@ namespace VideoStreamer.Controllers
             configuration.GetSection("StreamsConfig").Bind(_streamsConfig);
 		}
 
-		[Route("LiveStream/{chanel}/index.m3u8")]
-		public async Task<IActionResult> LiveStreamAsync(
+		[Route("Stream/{chanel}/index.m3u8")]
+		public async Task<IActionResult> StreamAsync(
 			string chanel,
-		    int listSize = 5)
+			int listSize = 5,
+		    int timeShiftMills = 0)
 		{
-			var time = DateTime.Now;
-			return await Task.Run(
-				() => GetPlaylistActionResult(chanel, time, listSize));
-		}
-
-		[Route("TimeShift/{chanel}/{timeShiftMills}/index.m3u8")]
-        public async Task<IActionResult> TimeShiftStreamAsync(
-			string chanel,
-			int timeShiftMills,
-			int listSize = 5)
-        {
 			var timeNow = DateTime.Now;
-			var time = timeNow;
-			if (timeShiftMills > 0)
-				time = time.AddMilliseconds(-timeShiftMills);
-   
+            var time = timeNow;
+            if (timeShiftMills > 0)
+                time = time.AddMilliseconds(-timeShiftMills);
+
             return await Task.Run(
-				() => GetPlaylistActionResult(chanel, time, listSize));
-        }
+                () => GetPlaylistActionResult(chanel, time, listSize));
+		}
 
 		private IActionResult GetPlaylistActionResult(
 			string chanel,

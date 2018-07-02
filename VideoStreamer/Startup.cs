@@ -31,7 +31,7 @@ namespace VideoStreamer
 			procManager = new StreamingProcManager();
 			foreach (var streamCfg in streamsConfig)
 			{
-				procManager.StartChunking(ffmpegConfig, streamCfg);
+				Task.Run(() => procManager.StartChunking(ffmpegConfig, streamCfg));
 			}
         }
         

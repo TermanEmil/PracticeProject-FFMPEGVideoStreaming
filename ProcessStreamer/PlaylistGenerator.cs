@@ -8,34 +8,7 @@ using Microsoft.Extensions.Configuration;
 using MoreLinq;
 
 namespace ProcessStreamer
-{
-	class ChunkFile
-	{
-		public string fullPath;
-		public int timeSeconds;
-		public int millsDuration;
-		public int index;
-
-		public ChunkFile(string fullPath)
-		{
-			this.fullPath = fullPath;
-			var fileName = Path.GetFileName(fullPath);
-
-			var numbersStr = Regex.Split(fileName, @"\D+");
-			this.timeSeconds = int.Parse(numbersStr[0]);
-			this.millsDuration = int.Parse(numbersStr[1]);
-			this.index = int.Parse(numbersStr[2]);
-		}
-
-		public string GetMillisecondsStr()
-		{
-			var duration = ((int)(millsDuration / 1000000)).ToString();
-			var millsStr = millsDuration.ToString();
-
-			return duration + "." + millsStr.Substring(duration.Length);
-		}
-	}
-
+{   
 	public static class PlaylistGenerator
     {         
 		public static string GeneratePlaylist(
@@ -65,7 +38,7 @@ namespace ProcessStreamer
 			        .OrderBy(x => x.timeSeconds)
                     .Take(hlsLstSize);
 
-			var fileChunks = GetContinuousChunks(chunks).ToArray();
+			var fileChunks = GetContinuousChunks(chunks).ToArray();         
 			if (fileChunks.Length < hlsLstSize)
 			{
 				throw new Exception(string.Format(
@@ -121,7 +94,9 @@ namespace ProcessStreamer
             var totalRequiredSec = (chunksCount + 1) * chunkTime;
 			if (targetTime.AddSeconds(totalRequiredSec) > newestDateTime)
 			{
-				return newestDateTime.AddSeconds(-totalRequiredSec);
+				var delta = newestDateTime - targetTime;
+				return newestDateTime.AddSeconds(-totalRequiredSec)
+					                 .Add(-delta);
 			}
 			else
 			{

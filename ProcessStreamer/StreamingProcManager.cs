@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace ProcessStreamer
 {
@@ -19,7 +22,8 @@ namespace ProcessStreamer
 
 		public void StartChunking(
 			FFMPEGConfig ffmpegConfig,
-			StreamConfig streamConfig)
+			StreamConfig streamConfig,
+		    int startNumber = 0)
 		{
 			var procInfo = new ProcessStartInfo();
 			procInfo.FileName = ffmpegConfig.BinaryPath;
@@ -37,9 +41,10 @@ namespace ProcessStreamer
                      
 			procInfo.Arguments = string.Join(" ", new[]
 			{
-			    "-y -re",
+				"-y -re",
 			    "-i " + streamConfig.Link,
 			    "-map 0",
+				"-start_number " + startNumber,
 			    "-codec:v copy -codec:a copy",
 			    "-f hls",
 			    "-hls_time " + streamConfig.ChunkTime,
@@ -51,22 +56,40 @@ namespace ProcessStreamer
    
 			var proc = new Process();
 			proc.StartInfo = procInfo;
-			proc.Exited += (o, s) => StartChunking(ffmpegConfig, streamConfig);
+			proc.EnableRaisingEvents = true;
+
+			proc.Exited += (o, s) =>
+			{
+				processes.Remove(o as Process);
+				var lastID = GetLastProducedIndex(ffmpegConfig, streamConfig);
+				StartChunking(ffmpegConfig, streamConfig, lastID + 1);
+			};
+
 			proc.Start();
-
-
-			processes.Add(proc);
+            
+			processes.Add(proc);         
+			proc.WaitForExit();
 		}
 
-		public void Cleanup()
+		private int GetLastProducedIndex(
+			FFMPEGConfig ffmpegCfg,
+			StreamConfig streamCfg)
 		{
-			foreach (var proc in processes)
-			{
-				proc.StandardInput.Close();
-				if (!proc.WaitForExit(2 * 1000))
-					proc.Kill();
-				proc.Dispose();
-			}
+			var chunksRoot = Path.Combine(
+				ffmpegCfg.ChunkStorageDir,
+				streamCfg.Name);
+			
+			var mostRecent =
+                Directory.GetFiles(chunksRoot, "*.ts", SearchOption.AllDirectories)
+                         .OrderByDescending(File.GetLastWriteTime)
+				         .FirstOrDefault();
+
+			if (mostRecent == null)
+				return -1;
+            
+			var chunkFile = new ChunkFile(mostRecent);
+			File.Delete(mostRecent);
+			return chunkFile.index;
 		}
     }
 }

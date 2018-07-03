@@ -1,5 +1,5 @@
 ﻿using System;
-namespace ProcessStreamer
+namespace FFMPEGStreamingTools.StreamingSettings
 {
     public class StreamConfig
     {

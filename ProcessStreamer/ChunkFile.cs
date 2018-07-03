@@ -2,7 +2,7 @@
 using System.IO;
 using System.Text.RegularExpressions;
 
-namespace ProcessStreamer
+namespace FFMPEGStreamingTools
 {
 	public class ChunkFile
     {

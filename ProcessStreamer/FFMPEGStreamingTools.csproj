@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <Compile Remove="Class1.cs" />
+    <Compile Remove="M3u8Generator\IM3u8Generator.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Microsoft.Extensions.Configuration.Abstractions">
@@ -15,5 +16,11 @@
   <ItemGroup>
     <PackageReference Include="morelinq" Version="3.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Session" Version="2.1.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="2.1.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="StreamingSettings\" />
+    <Folder Include="Utils\" />
+    <Folder Include="M3u8Generators\" />
   </ItemGroup>
 </Project>

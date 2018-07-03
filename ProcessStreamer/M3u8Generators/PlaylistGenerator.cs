@@ -6,33 +6,38 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Configuration;
 using MoreLinq;
+using FFMPEGStreamingTools.StreamingSettings;
+using FFMPEGStreamingTools.Utils;
 
-namespace ProcessStreamer
+namespace FFMPEGStreamingTools.M3u8Generators
 {   
-	public static class PlaylistGenerator
+	public class PlaylistGenerator
     {
-		private static readonly int safeHlsLstDelta = 1;
+		private readonly int safeHlsLstDelta = 1;
 
-		public static string GeneratePlaylist(
+		public string GenerateM3U8Str(
 			string channel,
 			DateTime time,
 			FFMPEGConfig ffmpegCfg,
 			IEnumerable<StreamConfig> streamsCfgs,
 			int hlsLstSize = 5)
 		{
-			var streamCfg = streamsCfgs.FirstOrDefault(x => x.Name == channel);         
+			var streamCfg = streamsCfgs.FirstOrDefault(x => x.Name == channel);
 			if (streamCfg == null)
-				throw new Exception("No such chanel");
+				throw new NoSuchChannelException(streamCfg.Name);
 
-			var chanelRoot = $"{ffmpegCfg.ChunkStorageDir}/{channel}/";
+			var channelRoot = $"{ffmpegCfg.ChunkStorageDir}/{channel}/";
 			var targetTime = GetMinChunkTimeSpan(
-				hlsLstSize + safeHlsLstDelta, streamCfg.ChunkTime, time, chanelRoot);
+				hlsLstSize + safeHlsLstDelta,
+				streamCfg.ChunkTime,
+				time,
+				channelRoot);
 
             var targetTimeS = targetTime.Add(-DateTimeOffset.Now.Offset)
                                         .ToUnixTimeSeconds();
 			
 			var chunks =
-				Directory.GetFiles(chanelRoot, "*.ts", SearchOption.AllDirectories)
+				Directory.GetFiles(channelRoot, "*.ts", SearchOption.AllDirectories)
 			        .Select(x => new ChunkFile(x))
 			        .Where(x =>
 				           x.timeSeconds >= targetTimeS - streamCfg.ChunkTime)
@@ -42,39 +47,54 @@ namespace ProcessStreamer
 
 			if (chunks.Length != hlsLstSize + safeHlsLstDelta)
 			{
-				throw NoAvailableFiles(
+				throw new NoAvailableFilesException(
 					chunks.Length,
 					hlsLstSize + safeHlsLstDelta,
 					$"(+{safeHlsLstDelta})");
 			}
 
-			var fileChunks = GetContinuousChunks(chunks).Take(hlsLstSize)
+			var fileChunks = GetConsecutiveChunks(chunks).Take(hlsLstSize)
 			                                            .ToArray();
 
 			if (fileChunks.Length != hlsLstSize)
-				throw NoAvailableFiles(fileChunks.Length, hlsLstSize);
-             
+			{
+				throw new NoAvailableFilesException(
+					fileChunks.Length,
+					hlsLstSize);
+			}
+
+			return CombineChunksIntoM3U8(
+				streamCfg,
+				fileChunks,
+				channelRoot,
+				channel);
+		}
+
+		private string CombineChunksIntoM3U8(
+			StreamConfig streamCfg,
+			IEnumerable<ChunkFile> fileChunks,
+			string channelRoot,
+			string channel)
+		{
 			var content = String.Join("\n", new[]
             {
                 "#EXTM3U",
                 "#EXT-X-VERSION:3",
-				$"#EXT-X-TARGETDURATION:{streamCfg.ChunkTime}",
-				$"#EXT-X-MEDIA-SEQUENCE:{fileChunks[0].index}",
+                $"#EXT-X-TARGETDURATION:{streamCfg.ChunkTime}",
+				$"#EXT-X-MEDIA-SEQUENCE:{fileChunks.First().index}",
             });
-			content += ",\n";
+            content += ",\n";
 
-			for (var i = 0; i < fileChunks.Length; i++)
-            {
-				var file = fileChunks[i];
+			foreach (var file in fileChunks)
+            {            
+                if (StreamingProcManager.instance.chunkDiscontinuities[channel].Contains(file.index))
+                    content += "#EXT-X-DISCONTINUITY\n";
 
-				if (StreamingProcManager.instance.chunkDiscontinuities[channel].Contains(file.index))
-					content += "#EXT-X-DISCONTINUITY\n";
-                
-				content += $"#EXTINF:{streamCfg.ChunkTime},\n";
-				content += file.fullPath.Replace(chanelRoot, "") + "\n";
+                content += $"#EXTINF:{streamCfg.ChunkTime},\n";
+                content += file.fullPath.Replace(channelRoot, "") + "\n";
             }
-            
-			return content;
+
+            return content;
 		}
 
 		/// <summary>
@@ -85,7 +105,7 @@ namespace ProcessStreamer
         /// 
         /// Otherwise, the received time is returned.
         /// </summary>
-        private static DateTime GetMinChunkTimeSpan(
+        private DateTime GetMinChunkTimeSpan(
             int chunksCount,
             double chunkTime,
             DateTime targetTime,
@@ -114,7 +134,12 @@ namespace ProcessStreamer
             }
         }
 
-		private static IEnumerable<ChunkFile> GetContinuousChunks(
+        /// <summary>
+        /// Returns only the first chunks that have a consecutive index.
+        /// </summary>
+        /// <returns>The continuous chunks.</returns>
+        /// <param name="chunks">Chunks.</param>
+		private IEnumerable<ChunkFile> GetConsecutiveChunks(
             IEnumerable<ChunkFile> chunks)
         {
             ChunkFile lastChunk = null;
@@ -128,7 +153,7 @@ namespace ProcessStreamer
             }
         }
 
-		private static string GetDirOfDateTime(DateTime time)
+		private string GetDirOfDateTime(DateTime time)
 		{
 			return
 				$"{time.Year}/" +
@@ -137,17 +162,5 @@ namespace ProcessStreamer
 				$"{time.Hour.ToString("00")}/" +
 				$"{time.Minute.ToString("00")}/";
 		}
-
-		private static Exception NoAvailableFiles(
-			int current,
-			int target,
-			string extrMsg = "")
-		{
-			return new Exception(string.Format(
-				"No available files: {0}/{1} {2}",
-				current,
-				target,
-				extrMsg));
-		}
-    }
+	}
 }

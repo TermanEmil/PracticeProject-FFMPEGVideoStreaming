@@ -4,8 +4,11 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
-using ProcessStreamer;
+using FFMPEGStreamingTools;
+using FFMPEGStreamingTools.StreamingSettings;
 using VideoStreamer.Models.LogFileViewModels;
+using FFMPEGStreamingTools.Utils;
+using FFMPEGStreamingTools.M3u8Generators;
 
 // For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -14,15 +17,14 @@ namespace VideoStreamer.Controllers
     
     public class LogFileController : Controller
     {
-        private readonly FFMPEGConfig _ffmpegConfig;
-        private readonly List<StreamConfig> _streamsConfig;
+		private readonly FFMPEGConfig _ffmpegCfg;
+		private readonly List<StreamConfig> _streamsCfg;
+		private readonly PlaylistGenerator _m3u8Generator;
 
-        public LogFileController(IConfiguration configuration)
+		public LogFileController(IConfiguration cfg)
         {
-            _ffmpegConfig = configuration.GetSection("FFMPEGConfig")
-                                         .Get<FFMPEGConfig>();
-            _streamsConfig = new List<StreamConfig>();
-            configuration.GetSection("StreamsConfig").Bind(_streamsConfig);
+			ConfigLoader.Load(cfg, out _ffmpegCfg, out _streamsCfg);
+			_m3u8Generator = new PlaylistGenerator();
         }
 
         [Route("api/[controller]/{channel}")]
@@ -46,11 +48,11 @@ namespace VideoStreamer.Controllers
 
             try
             {
-                content = PlaylistGenerator.GeneratePlaylist(
+				content = _m3u8Generator.GenerateM3U8Str(
                     channel,
                     DateTime.Now,
-                    _ffmpegConfig,
-                    _streamsConfig,
+					_ffmpegCfg,
+					_streamsCfg,
                     hlsListSize
                 );
             }

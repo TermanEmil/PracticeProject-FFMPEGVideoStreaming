@@ -6,22 +6,24 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
-using ProcessStreamer;
+using FFMPEGStreamingTools;
+using FFMPEGStreamingTools.StreamingSettings;
+using FFMPEGStreamingTools.Utils;
+using FFMPEGStreamingTools.M3u8Generators;
 
 namespace VideoStreamer.Controllers
 {
     [Route("api")]
 	public class StreamerController : Controller
     {
-		private readonly FFMPEGConfig _ffmpegConfig;
-		private readonly List<StreamConfig> _streamsConfig;
+		private readonly FFMPEGConfig _ffmpegCfg;
+		private readonly List<StreamConfig> _streamsCfg;
+		private readonly PlaylistGenerator _m3u8Generator;
 
-		public StreamerController(IConfiguration configuration)
+		public StreamerController(IConfiguration cfg)
 		{
-			_ffmpegConfig = configuration.GetSection("FFMPEGConfig")
-                                         .Get<FFMPEGConfig>();
-			_streamsConfig = new List<StreamConfig>();
-            configuration.GetSection("StreamsConfig").Bind(_streamsConfig);
+			ConfigLoader.Load(cfg, out _ffmpegCfg, out _streamsCfg);
+			_m3u8Generator = new PlaylistGenerator();
 		}
 
 		[Route("Stream/{chanel}/index.m3u8")]
@@ -48,18 +50,18 @@ namespace VideoStreamer.Controllers
 
 			try
 			{
-				content = PlaylistGenerator.GeneratePlaylist(
+				content = _m3u8Generator.GenerateM3U8Str(
 					chanel,
 					time,
-					_ffmpegConfig,
-					_streamsConfig,
+					_ffmpegCfg,
+					_streamsCfg,
 					hlsListSize
 				);
 			}
-			catch (Exception e)
-			{
-				return new JsonResult(e.Message);
-			}
+			catch (NoSuchChannelException e)
+			    { return new JsonResult(e.Message); }
+			catch (NoAvailableFilesException e)
+			    { return new JsonResult(e.Message); }
             
 			var bytes = Encoding.UTF8.GetBytes(content);
 			var result = new FileContentResult(bytes, "text/utf8")
@@ -67,7 +69,7 @@ namespace VideoStreamer.Controllers
 				FileDownloadName = "index.m3u8"
 			};
             
-			Console.WriteLine("<[StreamCtrl]>: Requested m3u8 {0}", DateTime.Now);
+			Console.WriteLine("[StreamCtrl]:> Requested m3u8 {0}", DateTime.Now);
 
 			return result;
 		}
@@ -84,7 +86,7 @@ namespace VideoStreamer.Controllers
 			string fileName)
 		{
 			var path = Path.Combine(
-				_ffmpegConfig.ChunkStorageDir,
+				_ffmpegCfg.ChunkStorageDir,
 				chanel,
 				year,
 				month,
@@ -98,7 +100,7 @@ namespace VideoStreamer.Controllers
 				return NotFound();
 			
 			Console.WriteLine(
-				"<[StreamCtrl]>: Requested TsFile {0} -> {1}",
+				"[StreamCtrl]:> Requested TsFile {0} -> {1}",
 				DateTime.Now,
 				path);
 			

@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace ProcessStreamer
+namespace FFMPEGStreamingTools.Utils
 {
 	public static class TimeTools
     {

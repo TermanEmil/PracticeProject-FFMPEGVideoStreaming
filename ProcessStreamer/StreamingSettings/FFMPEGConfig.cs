@@ -1,4 +1,6 @@
-﻿namespace ProcessStreamer
+﻿using Microsoft.Extensions.Configuration;
+
+namespace FFMPEGStreamingTools.StreamingSettings
 {
 	public class FFMPEGConfig
     {

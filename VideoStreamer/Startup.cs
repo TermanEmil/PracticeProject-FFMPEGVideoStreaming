@@ -9,7 +9,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using ProcessStreamer;
+using FFMPEGStreamingTools;
+using FFMPEGStreamingTools.StreamingSettings;
+using FFMPEGStreamingTools.Utils;
 
 namespace VideoStreamer
 {
@@ -18,17 +20,10 @@ namespace VideoStreamer
 		public IConfiguration Configuration { get; }
 		private StreamingProcManager procManager;
 
-		public Startup(IConfiguration configuration)
+		public Startup(IConfiguration cfg)
         {
-            Configuration = configuration;
-            
-			var ffmpegConfig = Configuration.GetSection("FFMPEGConfig")
-			                                .Get<FFMPEGConfig>();
-			var streamsConfig = new List<StreamConfig>();
-			Configuration.GetSection("StreamsConfig")
-			             .Bind(streamsConfig);
-			
-			procManager = new StreamingProcManager();
+			ConfigLoader.Load(cfg, out var ffmpegConfig, out var streamsConfig);
+			procManager = new StreamingProcManager();         
 			foreach (var streamCfg in streamsConfig)
 			{
 				Task.Run(() => procManager.StartChunking(ffmpegConfig, streamCfg));

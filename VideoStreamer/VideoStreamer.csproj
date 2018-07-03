@@ -21,6 +21,7 @@
     <PackageReference Include="Microsoft.AspNetCore.All" Version="2.0.0" />
     <PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
     <PackageReference Include="Microsoft.AspNetCore.Session" Version="2.1.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="2.1.1" />
   </ItemGroup>
 
   <ItemGroup>
@@ -1886,7 +1887,7 @@
     <None Remove="logFile.log" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\ProcessStreamer\ProcessStreamer.csproj" />
+    <ProjectReference Include="..\ProcessStreamer\FFMPEGStreamingTools.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Content Remove="wwwroot\ffmpegChunks\RadioMD\2018\06\28\1530183930.ts" />

@@ -54,6 +54,7 @@ namespace VideoStreamer
             }
             app.UseMvc();
             app.UseSession();
+            app.UseStaticFiles();
         }
     }
 }

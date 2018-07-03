@@ -12,6 +12,9 @@
     <Folder Include="Views\LivePlayer\" />
     <Folder Include="Models\LivePlayerViewModels\" />
     <Folder Include="Views\ProcessMonitor\" />
+    <Folder Include="wwwroot\js\" />
+    <Folder Include="Views\LogFile\" />
+    <Folder Include="Models\LogFileViewModels\" />
   </ItemGroup>
 
   <ItemGroup>
@@ -1880,6 +1883,7 @@
     <None Remove="Chunks\JurnalTV\2018\06\30\02\37\1530315448-0005760000-00029.ts" />
     <None Remove="Chunks\RadioMD\2018\06\30\02\37\1530315448-0005981989-00031.ts" />
     <None Remove="Chunks\NationalGeographic\2018\06\30\02\37\1530315449-0006600000-00030.ts" />
+    <None Remove="logFile.log" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ProcessStreamer\ProcessStreamer.csproj" />

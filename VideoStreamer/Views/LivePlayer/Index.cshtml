@@ -1,14 +1,22 @@
-﻿<!DOCTYPE html>
+﻿@model VideoStreamer.Models.LivePlayerViewModels.LivePlayerView;
+
+
+<!DOCTYPE html>
 <html lang="en">
     <head>
         <meta charset="utf-8" />
-        <title>PracticeProject</title>
+        <title>LivePlayer</title>
     </head>
     <body>
-        <h1>Something</h1>
-        <p>The following video provides an introduction to WebMatrix:</p>
+@if(@Model.Channel != "")
+{
+        <h1 align="center">Live Player</h1>
         <video width="320" height="240" style="width:50%; height:auto;float:left;" controls autoplay="autoplay"> 
-  <source src="http://localhost:39986/api/LiveStream/JurnalTV/index.m3u8" type="application/x-mpegURL"> 
-< /video>
+  <source src="@("http://localhost:39986/api/Stream/" + Model.Channel + "/index.m3u8")" type="application/x-mpegURL"> 
+</video>
+} else
+        {
+            <div>Something Went Wrong</div>
+        }
 </body>
 </html>

@@ -12,16 +12,23 @@ namespace ProcessStreamer
     {
 		public static StreamingProcManager instance;
         public static UInt64 _bytes;
-
+		public static bool logToFile = false;
+        
 		public List<Process> processes = new List<Process>();
+              
+		public Dictionary<string, HashSet<int>> chunkDiscontinuities =
+			new Dictionary<string, HashSet<int>>();
 
 		private StreamWriter logFile;
 
 		public StreamingProcManager()
 		{
 			instance = this;
-			var fileStream = new FileStream("logFile.log", FileMode.Create);
-			logFile = new StreamWriter(fileStream);
+			if (logToFile)
+			{
+				var fileStream = new FileStream("logFile.log", FileMode.Create);
+				logFile = new StreamWriter(fileStream);
+			}
 		}
 
 		public void StartChunking(
@@ -29,14 +36,17 @@ namespace ProcessStreamer
 			StreamConfig streamConfig,
 		    int startNumber = 0)
 		{
+			if (!chunkDiscontinuities.ContainsKey(streamConfig.Name))
+			    chunkDiscontinuities.Add(streamConfig.Name, new HashSet<int>());
+            
 			var procInfo = new ProcessStartInfo();
 			procInfo.FileName = ffmpegConfig.BinaryPath;
 			streamConfig.Name = streamConfig.Name;
-
+   
 			var segmentFilename =
 				ffmpegConfig.ChunkStorageDir + "/" +
-	            streamConfig.Name + "/" +
-				ffmpegConfig.SegmentFilename;
+				streamConfig.Name + "/" +
+	            $"%Y/%m/%d/%H/%M/%s-%%06d.ts";
 
 			var m3u8File =
 				ffmpegConfig.ChunkStorageDir + "/" +
@@ -45,11 +55,14 @@ namespace ProcessStreamer
 			
 			procInfo.Arguments = string.Join(" ", new[]
 			{
+				"-err_detect ignore_err",
+				"-reconnect 1 -reconnect_at_eof 1 -reconnect_streamed 1 -reconnect_delay_max 300",
 				"-y -re",
-			    "-i " + streamConfig.Link,
+                "-hide_banner",
+			    "-i " + streamConfig.Link,            
 			    "-map 0",
 				"-start_number " + startNumber,
-			    "-codec:v copy -codec:a copy",
+				"-codec:v copy -codec:a copy -c copy",
 			    "-f hls",
 			    "-hls_time " + streamConfig.ChunkTime,
 			    "-use_localtime 1 -use_localtime_mkdir 1",
@@ -58,8 +71,11 @@ namespace ProcessStreamer
 			    m3u8File
 			});
 
-			procInfo.RedirectStandardOutput = true;
-			procInfo.RedirectStandardError = true;
+			if (logToFile)
+			{
+				procInfo.RedirectStandardOutput = true;
+				procInfo.RedirectStandardError = true;
+			}
 
 			var proc = new Process();
 			proc.StartInfo = procInfo;
@@ -70,19 +86,36 @@ namespace ProcessStreamer
 				processes.Remove(o as Process);
 				var lastID = GetLastProducedIndex(ffmpegConfig, streamConfig);
 
-				logFile.WriteLine(string.Format(
+				var log = string.Format(
 					"[Restarting]: lastID = {0} | {1}",
 					lastID,
-					streamConfig.Name));
-				StartChunking(ffmpegConfig, streamConfig, lastID + 1);            
+					streamConfig.Name);
+
+				if (logToFile)
+					logFile.WriteLine(log);
+				else
+					Console.WriteLine(log);
+
+				var nextID = lastID + 1;
+				if (!chunkDiscontinuities[streamConfig.Name].Contains(nextID))
+				    chunkDiscontinuities[streamConfig.Name].Add(nextID);
+
+				StartChunking(ffmpegConfig, streamConfig, nextID);
 			};
 
-			proc.ErrorDataReceived += OutputErrDataReceived;
-			proc.OutputDataReceived += OutputDataReceived;
+			if (logToFile)
+			{            
+				proc.ErrorDataReceived += OutputErrDataReceived;
+				proc.OutputDataReceived += OutputDataReceived;
+			}
 
 			proc.Start();
-			proc.BeginOutputReadLine();
-			proc.BeginErrorReadLine();
+
+			if (logToFile)
+			{
+				proc.BeginOutputReadLine();
+				proc.BeginErrorReadLine();
+			}
 
 			processes.Add(proc);         
 			proc.WaitForExit();
@@ -114,17 +147,16 @@ namespace ProcessStreamer
 			if (mostRecent == null)
 				return 0;
                      
-			var chunkFile = new ChunkFile(mostRecent);
-			File.Delete(mostRecent);
-			return chunkFile.index - 1;
-			//var info = new FileInfo(mostRecent);
-			//if (info.Length == 0)
-			//{
-			//	File.Delete(mostRecent);
-			//	return chunkFile.index - 1;
-			//}
-			//else
-			    //return chunkFile.index; 
+			var mostRecentChunk = new ChunkFile(mostRecent);
+			var currentSeconds = TimeTools.CurrentSeconds();
+
+			if (currentSeconds - mostRecentChunk.timeSeconds < streamCfg.ChunkTime * 2)
+			{
+				File.Delete(mostRecent);
+				return mostRecentChunk.index - 1;
+			}
+			else
+				return mostRecentChunk.index;
 		}
     }
 }

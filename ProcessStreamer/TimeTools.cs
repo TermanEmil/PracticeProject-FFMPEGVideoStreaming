@@ -16,5 +16,11 @@ namespace ProcessStreamer
 		{
 			return unixEpoch.AddSeconds(seconds);
 		}
+
+		public static int CurrentSeconds()
+		{
+			return DateTime.Now.Add(-DateTimeOffset.Now.Offset)
+				           .ToUnixTimeSeconds();
+		}
     }
 }

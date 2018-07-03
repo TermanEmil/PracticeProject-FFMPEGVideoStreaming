@@ -11,22 +11,22 @@ namespace ProcessStreamer
 {   
 	public static class PlaylistGenerator
     {
-		private static readonly int safeHlsLstSize = 4;
+		private static readonly int safeHlsLstDelta = 1;
 
 		public static string GeneratePlaylist(
-			string chanel,
+			string channel,
 			DateTime time,
 			FFMPEGConfig ffmpegCfg,
 			IEnumerable<StreamConfig> streamsCfgs,
 			int hlsLstSize = 5)
 		{
-			var streamCfg = streamsCfgs.FirstOrDefault(x => x.Name == chanel);         
+			var streamCfg = streamsCfgs.FirstOrDefault(x => x.Name == channel);         
 			if (streamCfg == null)
 				throw new Exception("No such chanel");
 
-			var chanelRoot = $"{ffmpegCfg.ChunkStorageDir}/{chanel}/";
+			var chanelRoot = $"{ffmpegCfg.ChunkStorageDir}/{channel}/";
 			var targetTime = GetMinChunkTimeSpan(
-				hlsLstSize + safeHlsLstSize, streamCfg.ChunkTime, time, chanelRoot);
+				hlsLstSize + safeHlsLstDelta, streamCfg.ChunkTime, time, chanelRoot);
 
             var targetTimeS = targetTime.Add(-DateTimeOffset.Now.Offset)
                                         .ToUnixTimeSeconds();
@@ -37,15 +37,15 @@ namespace ProcessStreamer
 			        .Where(x =>
 				           x.timeSeconds >= targetTimeS - streamCfg.ChunkTime)
 			        .OrderBy(x => x.timeSeconds)
-			         .Take(hlsLstSize + safeHlsLstSize)
+			        .Take(hlsLstSize + safeHlsLstDelta)
 			        .ToArray();
 
-			if (chunks.Length != hlsLstSize + safeHlsLstSize)
+			if (chunks.Length != hlsLstSize + safeHlsLstDelta)
 			{
 				throw NoAvailableFiles(
 					chunks.Length,
-					hlsLstSize + safeHlsLstSize,
-					$"(+{safeHlsLstSize})");
+					hlsLstSize + safeHlsLstDelta,
+					$"(+{safeHlsLstDelta})");
 			}
 
 			var fileChunks = GetContinuousChunks(chunks).Take(hlsLstSize)
@@ -59,16 +59,19 @@ namespace ProcessStreamer
                 "#EXTM3U",
                 "#EXT-X-VERSION:3",
 				$"#EXT-X-TARGETDURATION:{streamCfg.ChunkTime}",
-                $"#EXT-X-MEDIA-SEQUENCE:{fileChunks[0].index}",
-				//$"#Stopwatch:{timer1.Elapsed.TotalMilliseconds}/{timer2.Elapsed.TotalMilliseconds}",
-				//$"#RequestTime:{targetTimeS}"
+				$"#EXT-X-MEDIA-SEQUENCE:{fileChunks[0].index}",
             });
 			content += ",\n";
-            
-			foreach (var file in fileChunks)
+
+			for (var i = 0; i < fileChunks.Length; i++)
             {
-				content += $"#EXTINF:{streamCfg.ChunkTime}," + "\n";
-                content += file.fullPath.Replace(chanelRoot, "") + "\n";
+				var file = fileChunks[i];
+
+				if (StreamingProcManager.instance.chunkDiscontinuities[channel].Contains(file.index))
+					content += "#EXT-X-DISCONTINUITY\n";
+                
+				content += $"#EXTINF:{streamCfg.ChunkTime},\n";
+				content += file.fullPath.Replace(chanelRoot, "") + "\n";
             }
             
 			return content;

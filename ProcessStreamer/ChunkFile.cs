@@ -18,8 +18,8 @@ namespace ProcessStreamer
 
             var numbersStr = Regex.Split(fileName, @"\D+");
             this.timeSeconds = int.Parse(numbersStr[0]);
-            this.millsDuration = int.Parse(numbersStr[1]);
-            this.index = int.Parse(numbersStr[2]);
+            //this.millsDuration = int.Parse(numbersStr[1]);
+            this.index = int.Parse(numbersStr[1]);
         }
 
         public string GetMillisecondsStr()

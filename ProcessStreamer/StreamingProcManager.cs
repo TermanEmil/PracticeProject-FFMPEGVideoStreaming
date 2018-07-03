@@ -53,7 +53,7 @@ namespace ProcessStreamer
 			    "-f hls",
 			    "-hls_time " + streamConfig.ChunkTime,
 			    "-use_localtime 1 -use_localtime_mkdir 1",
-				"-hls_flags second_level_segment_duration+second_level_segment_index",
+				"-hls_flags second_level_segment_index",
 			    "-hls_segment_filename " + segmentFilename,
 			    m3u8File
 			});
@@ -69,9 +69,12 @@ namespace ProcessStreamer
 			{
 				processes.Remove(o as Process);
 				var lastID = GetLastProducedIndex(ffmpegConfig, streamConfig);
-				StartChunking(ffmpegConfig, streamConfig, lastID + 1);
 
-				logFile.WriteLine("[Restarted]: " + streamConfig.Name);
+				logFile.WriteLine(string.Format(
+					"[Restarting]: lastID = {0} | {1}",
+					lastID,
+					streamConfig.Name));
+				StartChunking(ffmpegConfig, streamConfig, lastID + 1);            
 			};
 
 			proc.ErrorDataReceived += OutputErrDataReceived;
@@ -105,15 +108,15 @@ namespace ProcessStreamer
 			
 			var mostRecent =
                 Directory.GetFiles(chunksRoot, "*.ts", SearchOption.AllDirectories)
-                         .OrderByDescending(File.GetLastWriteTime)
+				         .OrderByDescending(File.GetCreationTime)
 				         .FirstOrDefault();
 
 			if (mostRecent == null)
-				return -1;
+				return 0;
             
 			var chunkFile = new ChunkFile(mostRecent);
-			File.Delete(mostRecent);
-			return chunkFile.index;
+			//File.Delete(mostRecent);
+			return chunkFile.index; 
 		}
     }
 }

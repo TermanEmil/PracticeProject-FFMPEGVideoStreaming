@@ -66,7 +66,9 @@ namespace VideoStreamer.Controllers
 			{
 				FileDownloadName = "index.m3u8"
 			};
-                     
+            
+			Console.WriteLine("Requested m3u8 {0}", DateTime.Now);
+
 			return result;
 		}
 

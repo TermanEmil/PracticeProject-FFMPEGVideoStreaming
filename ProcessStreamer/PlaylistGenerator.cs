@@ -33,10 +33,10 @@ namespace ProcessStreamer
 				Directory.GetFiles(chanelRoot, "*.ts", SearchOption.AllDirectories)
 			        .Select(x => new ChunkFile(x))
 			        .Where(x =>
-				           x.timeSeconds >= targetTimeS - streamCfg.ChunkTime &&
-				           x.millsDuration > 0)
+				           x.timeSeconds >= targetTimeS - streamCfg.ChunkTime)
 			        .OrderBy(x => x.timeSeconds)
-                    .Take(hlsLstSize);
+                    .Take(hlsLstSize)
+			        .ToArray();
 
 			var fileChunks = GetContinuousChunks(chunks).ToArray();         
 			if (fileChunks.Length < hlsLstSize)
@@ -60,7 +60,7 @@ namespace ProcessStreamer
             
 			foreach (var file in fileChunks)
             {
-                content += $"#EXTINF:{file.GetMillisecondsStr()}," + "\n";
+				content += $"#EXTINF:{streamCfg.ChunkTime}," + "\n";
                 content += file.fullPath.Replace(chanelRoot, "") + "\n";
             }
             

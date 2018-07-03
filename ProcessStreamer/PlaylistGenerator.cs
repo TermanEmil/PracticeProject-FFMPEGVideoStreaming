@@ -10,7 +10,9 @@ using MoreLinq;
 namespace ProcessStreamer
 {   
 	public static class PlaylistGenerator
-    {         
+    {
+		private static readonly int safeHlsLstSize = 4;
+
 		public static string GeneratePlaylist(
 			string chanel,
 			DateTime time,
@@ -23,30 +25,35 @@ namespace ProcessStreamer
 				throw new Exception("No such chanel");
 
 			var chanelRoot = $"{ffmpegCfg.ChunkStorageDir}/{chanel}/";
-
 			var targetTime = GetMinChunkTimeSpan(
-				hlsLstSize, streamCfg.ChunkTime, time, chanelRoot);
+				hlsLstSize + safeHlsLstSize, streamCfg.ChunkTime, time, chanelRoot);
 
-			var targetTimeS = targetTime.Add(-DateTimeOffset.Now.Offset)
+            var targetTimeS = targetTime.Add(-DateTimeOffset.Now.Offset)
                                         .ToUnixTimeSeconds();
+			
 			var chunks =
 				Directory.GetFiles(chanelRoot, "*.ts", SearchOption.AllDirectories)
 			        .Select(x => new ChunkFile(x))
 			        .Where(x =>
 				           x.timeSeconds >= targetTimeS - streamCfg.ChunkTime)
 			        .OrderBy(x => x.timeSeconds)
-                    .Take(hlsLstSize)
+			         .Take(hlsLstSize + safeHlsLstSize)
 			        .ToArray();
 
-			var fileChunks = GetContinuousChunks(chunks).ToArray();         
-			if (fileChunks.Length < hlsLstSize)
+			if (chunks.Length != hlsLstSize + safeHlsLstSize)
 			{
-				throw new Exception(string.Format(
-					"No available files: {0}/{1}",
-					fileChunks.Length,
-					hlsLstSize));
+				throw NoAvailableFiles(
+					chunks.Length,
+					hlsLstSize + safeHlsLstSize,
+					$"(+{safeHlsLstSize})");
 			}
 
+			var fileChunks = GetContinuousChunks(chunks).Take(hlsLstSize)
+			                                            .ToArray();
+
+			if (fileChunks.Length != hlsLstSize)
+				throw NoAvailableFiles(fileChunks.Length, hlsLstSize);
+             
 			var content = String.Join("\n", new[]
             {
                 "#EXTM3U",
@@ -67,24 +74,24 @@ namespace ProcessStreamer
 			return content;
 		}
 
-        /// <summary>
+		/// <summary>
         /// Get the closest possible time to the target time, depending
-		/// on the number of chunks and the newest file.
-		/// If it's live, then the newest file - (n + 1) * chunkTime will
-		/// be returned. Note +1 because the newest is still being created.
-		/// 
-		/// Otherwise, the received time is returned.
+        /// on the number of chunks and the newest file.
+        /// If it's live, then the newest file - (n + 1) * chunkTime will
+        /// be returned. Note +1 because the newest is still being created.
+        /// 
+        /// Otherwise, the received time is returned.
         /// </summary>
-		private static DateTime GetMinChunkTimeSpan(
+        private static DateTime GetMinChunkTimeSpan(
             int chunksCount,
             double chunkTime,
             DateTime targetTime,
             string chunksRoot)
         {
-			var mostRecent =
-				Directory.GetFiles(chunksRoot, "*.ts", SearchOption.AllDirectories)
-				         .OrderByDescending(File.GetLastWriteTime)
-				         .First();
+            var mostRecent =
+                Directory.GetFiles(chunksRoot, "*.ts", SearchOption.AllDirectories)
+                         .OrderByDescending(File.GetLastWriteTime)
+                         .First();
 
             var newestChunk = new ChunkFile(mostRecent);
             var newestDateTime = TimeTools
@@ -92,16 +99,16 @@ namespace ProcessStreamer
                 .Add(DateTimeOffset.Now.Offset);
 
             var totalRequiredSec = (chunksCount + 1) * chunkTime;
-			if (targetTime.AddSeconds(totalRequiredSec) > newestDateTime)
-			{
-				var delta = newestDateTime - targetTime;
-				return newestDateTime.AddSeconds(-totalRequiredSec)
-					                 .Add(-delta);
-			}
-			else
-			{
-				return targetTime;
-			}
+            if (targetTime.AddSeconds(totalRequiredSec) > newestDateTime)
+            {
+                var delta = newestDateTime - targetTime;
+                return newestDateTime.AddSeconds(-totalRequiredSec)
+                                     .Add(-delta);
+            }
+            else
+            {
+                return targetTime;
+            }
         }
 
 		private static IEnumerable<ChunkFile> GetContinuousChunks(
@@ -126,6 +133,18 @@ namespace ProcessStreamer
 				$"{time.Day.ToString("00")}/" +
 				$"{time.Hour.ToString("00")}/" +
 				$"{time.Minute.ToString("00")}/";
+		}
+
+		private static Exception NoAvailableFiles(
+			int current,
+			int target,
+			string extrMsg = "")
+		{
+			return new Exception(string.Format(
+				"No available files: {0}/{1} {2}",
+				current,
+				target,
+				extrMsg));
 		}
     }
 }

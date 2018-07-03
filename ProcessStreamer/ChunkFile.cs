@@ -8,7 +8,6 @@ namespace ProcessStreamer
     {
         public string fullPath;
         public int timeSeconds;
-        public int millsDuration;
         public int index;
 
         public ChunkFile(string fullPath)
@@ -18,16 +17,7 @@ namespace ProcessStreamer
 
             var numbersStr = Regex.Split(fileName, @"\D+");
             this.timeSeconds = int.Parse(numbersStr[0]);
-            //this.millsDuration = int.Parse(numbersStr[1]);
             this.index = int.Parse(numbersStr[1]);
-        }
-
-        public string GetMillisecondsStr()
-        {
-            var duration = ((int)(millsDuration / 1000000)).ToString();
-            var millsStr = millsDuration.ToString();
-
-            return duration + "." + millsStr.Substring(duration.Length);
         }
     }
 }

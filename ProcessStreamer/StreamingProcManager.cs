@@ -42,7 +42,7 @@ namespace ProcessStreamer
 				ffmpegConfig.ChunkStorageDir + "/" +
 	            streamConfig.Name + "/" +
 				"index.m3u8";
-                     
+			
 			procInfo.Arguments = string.Join(" ", new[]
 			{
 				"-y -re",
@@ -113,10 +113,18 @@ namespace ProcessStreamer
 
 			if (mostRecent == null)
 				return 0;
-            
+                     
 			var chunkFile = new ChunkFile(mostRecent);
-			//File.Delete(mostRecent);
-			return chunkFile.index; 
+			File.Delete(mostRecent);
+			return chunkFile.index - 1;
+			//var info = new FileInfo(mostRecent);
+			//if (info.Length == 0)
+			//{
+			//	File.Delete(mostRecent);
+			//	return chunkFile.index - 1;
+			//}
+			//else
+			    //return chunkFile.index; 
 		}
     }
 }

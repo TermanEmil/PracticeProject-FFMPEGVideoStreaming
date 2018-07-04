@@ -38,7 +38,7 @@ namespace VideoStreamer
             services.AddDistributedMemoryCache();
             services.AddSession(options =>
 			{
-				options.IdleTimeout = TimeSpan.FromMinutes(1.0);
+				//options.IdleTimeout = TimeSpan.FromMinutes(1.0);
 			});
         }
   

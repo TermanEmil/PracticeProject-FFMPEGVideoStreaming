@@ -5,13 +5,6 @@ namespace FFMPEGStreamingTools
     {
 		public DateTime ReferenceTime { get; set; }
 		public string Channel { get; set; }
-
-		public override int GetHashCode()
-		{
-			return
-				base.GetHashCode() ^
-				    ReferenceTime.GetHashCode() ^
-				    Channel.GetHashCode();
-		}
+		public TimeSpan TimeDifference { get; set; }
 	}
 }

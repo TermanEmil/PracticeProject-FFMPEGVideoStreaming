@@ -12,6 +12,10 @@ using FFMPEGStreamingTools.Utils;
 using FFMPEGStreamingTools.M3u8Generators;
 using VideoStreamer.Utils;
 using Microsoft.AspNetCore.Http;
+using Newtonsoft.Json;
+using System.Text.RegularExpressions;
+using System.Linq;
+using System.Threading;
 
 namespace VideoStreamer.Controllers
 {
@@ -26,23 +30,53 @@ namespace VideoStreamer.Controllers
 			ConfigLoader.Load(cfg, out _ffmpegCfg, out _streamsCfg);
 		}
 
-		[Route("Stream/{chanel}/index.m3u8")]
+		[Route("Stream/{channel}/index.m3u8")]
 		public async Task<IActionResult> StreamAsync(
-			string chanel,
+			string channel,
 			int listSize = 5,
+			string timeStr = null,
 		    int timeShiftMills = 0)
 		{
-			var timeNow = DateTime.Now;
-            var time = timeNow;
+			DateTime requiredTime;
+
+			if (timeStr == null)
+				requiredTime = DateTime.Now;
+			else
+				requiredTime = ProcessFixedTime(timeStr, channel);
+
             if (timeShiftMills > 0)
-                time = time.AddMilliseconds(-timeShiftMills);
+                requiredTime = requiredTime.AddMilliseconds(-timeShiftMills);
 
             return await Task.Run(
-                () => GetPlaylistActionResult(chanel, time, listSize));
+                () => GetPlaylistActionResult(channel, requiredTime, listSize));
+		}
+
+		private DateTime ProcessFixedTime(
+			string timeStr,
+			string channel)
+		{
+			var time = JsonConvert.DeserializeObject<DateTime>(timeStr);
+            
+
+            var reqState = HttpContext.Session.GetStreamRequestState();
+            if (reqState == null ||
+                reqState.Channel != channel ||
+                reqState.ReferenceTime != time)
+            {
+                reqState = new StreamRequestState
+                {
+                    Channel = channel,
+                    ReferenceTime = time,
+                    TimeDifference = DateTime.Now - time
+                };
+                HttpContext.Session.SetStreamRequestState(reqState);            
+            }
+
+			var result = DateTime.Now.Add(-reqState.TimeDifference);
+			return result;
 		}
 
 		public static string GetRawPlaylist(
-			ISession session,
 			FFMPEGConfig ffmpegCfg,
 			IEnumerable<StreamConfig> streamsCfgs,
 			string channel,
@@ -52,20 +86,6 @@ namespace VideoStreamer.Controllers
 		{
 			var content = "";
 
-            var reqState = session.GetStreamRequestState();
-			var hash = reqState?.GetHashCode();
-            if (reqState == null)
-            {
-                reqState = new StreamRequestState
-                {
-                    Channel = channel,
-                    ReferenceTime = DateTime.Now
-                };
-
-                // Require value to be updated.
-                hash = 0;
-            }
-
 			var m3u8Generator = new PlaylistGenerator();
 			try
 			{
@@ -74,7 +94,6 @@ namespace VideoStreamer.Controllers
 					time,
 					ffmpegCfg,
 					streamsCfgs,
-					ref reqState,
 					hlsListSize
 				);
 				exception = null;
@@ -83,10 +102,7 @@ namespace VideoStreamer.Controllers
 			{ exception = e; }
 			catch (NoAvailableFilesException e)
 			{ exception = e; }
-
-			if (reqState.GetHashCode() != hash)
-                session.SetStreamRequestState(reqState);
-
+            
 			return exception != null ? null : content;
 		}
 
@@ -96,7 +112,6 @@ namespace VideoStreamer.Controllers
 		    int hlsListSize)
 		{
 			var content = GetRawPlaylist(
-				HttpContext.Session,
 				_ffmpegCfg, _streamsCfg,          
 				channel,
 				time,
@@ -117,10 +132,10 @@ namespace VideoStreamer.Controllers
 			return result;
 		}
 
-		[Route("{mode}/{chanel}/{year}/{month}/{day}/{hour}/{minute}/{fileName}")]
+		[Route("{mode}/{channel}/{year}/{month}/{day}/{hour}/{minute}/{fileName}")]
 		public IActionResult GetChunkFile(
 			string mode,
-			string chanel,
+			string channel,
 			string year,
 			string month,
 			string day,
@@ -130,7 +145,7 @@ namespace VideoStreamer.Controllers
 		{
 			var path = Path.Combine(
 				_ffmpegCfg.ChunkStorageDir,
-				chanel,
+				channel,
 				year,
 				month,
 				day,

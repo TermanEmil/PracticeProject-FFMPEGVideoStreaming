@@ -22,7 +22,6 @@ namespace FFMPEGStreamingTools.M3u8Generators
 			DateTime time,
 			FFMPEGConfig ffmpegCfg,
 			IEnumerable<StreamConfig> streamsCfgs,
-			ref StreamRequestState streamRequestState,
 			int hlsLstSize = 5)
 		{
 			var streamCfg = streamsCfgs.FirstOrDefault(x => x.Name == channel);

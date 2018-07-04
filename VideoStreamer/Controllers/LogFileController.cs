@@ -50,7 +50,6 @@ namespace VideoStreamer.Controllers
 		    int timeShiftMills = 0)
         {
 			var content = StreamerController.GetRawPlaylist(
-				HttpContext.Session,
 				_ffmpegCfg, _streamsCfg,
 				channel,
 				DateTime.Now.AddMilliseconds(-timeShiftMills),

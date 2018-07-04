@@ -27,7 +27,7 @@ namespace VideoStreamer.Utils
 			else
 			{
 				var result =
-					JsonConvert.DeserializeObject(json) as StreamRequestState;
+					JsonConvert.DeserializeObject<StreamRequestState>(json);
 				return result;
 			}
 		}

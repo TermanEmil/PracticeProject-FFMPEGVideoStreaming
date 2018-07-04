@@ -10,6 +10,8 @@ using FFMPEGStreamingTools;
 using FFMPEGStreamingTools.StreamingSettings;
 using FFMPEGStreamingTools.Utils;
 using FFMPEGStreamingTools.M3u8Generators;
+using VideoStreamer.Utils;
+using Microsoft.AspNetCore.Http;
 
 namespace VideoStreamer.Controllers
 {
@@ -18,12 +20,10 @@ namespace VideoStreamer.Controllers
     {
 		private readonly FFMPEGConfig _ffmpegCfg;
 		private readonly List<StreamConfig> _streamsCfg;
-		private readonly PlaylistGenerator _m3u8Generator;
 
 		public StreamerController(IConfiguration cfg)
 		{
 			ConfigLoader.Load(cfg, out _ffmpegCfg, out _streamsCfg);
-			_m3u8Generator = new PlaylistGenerator();
 		}
 
 		[Route("Stream/{chanel}/index.m3u8")]
@@ -41,28 +41,71 @@ namespace VideoStreamer.Controllers
                 () => GetPlaylistActionResult(chanel, time, listSize));
 		}
 
-		private IActionResult GetPlaylistActionResult(
-			string chanel,
-			DateTime time,
-		    int hlsListSize)
+		public static string GetRawPlaylist(
+			ISession session,
+			FFMPEGConfig ffmpegCfg,
+			IEnumerable<StreamConfig> streamsCfgs,
+			string channel,
+            DateTime time,
+            int hlsListSize,
+			out Exception exception)
 		{
 			var content = "";
 
+            var reqState = session.GetStreamRequestState();
+			var hash = reqState?.GetHashCode();
+            if (reqState == null)
+            {
+                reqState = new StreamRequestState
+                {
+                    Channel = channel,
+                    ReferenceTime = DateTime.Now
+                };
+
+                // Require value to be updated.
+                hash = 0;
+            }
+
+			var m3u8Generator = new PlaylistGenerator();
 			try
 			{
-				content = _m3u8Generator.GenerateM3U8Str(
-					chanel,
+				content = m3u8Generator.GenerateM3U8Str(
+					channel,
 					time,
-					_ffmpegCfg,
-					_streamsCfg,
+					ffmpegCfg,
+					streamsCfgs,
+					ref reqState,
 					hlsListSize
 				);
+				exception = null;
 			}
 			catch (NoSuchChannelException e)
-			    { return new JsonResult(e.Message); }
+			{ exception = e; }
 			catch (NoAvailableFilesException e)
-			    { return new JsonResult(e.Message); }
-            
+			{ exception = e; }
+
+			if (reqState.GetHashCode() != hash)
+                session.SetStreamRequestState(reqState);
+
+			return exception != null ? null : content;
+		}
+
+		private IActionResult GetPlaylistActionResult(
+			string channel,
+			DateTime time,
+		    int hlsListSize)
+		{
+			var content = GetRawPlaylist(
+				HttpContext.Session,
+				_ffmpegCfg, _streamsCfg,          
+				channel,
+				time,
+				hlsListSize,
+				out var exception);
+
+			if (exception != null)
+				return new JsonResult(exception.Message);
+   
 			var bytes = Encoding.UTF8.GetBytes(content);
 			var result = new FileContentResult(bytes, "text/utf8")
 			{

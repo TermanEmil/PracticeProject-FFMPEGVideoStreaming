@@ -17,11 +17,12 @@ namespace VideoStreamer
 {
     public class Startup
     {
-		public IConfiguration Configuration { get; }
+		public IConfiguration Cfg { get; }
 		private StreamingProcManager procManager;
 
 		public Startup(IConfiguration cfg)
         {
+			Cfg = cfg;
 			ConfigLoader.Load(cfg, out var ffmpegConfig, out var streamsConfig);
 			procManager = new StreamingProcManager();         
 			foreach (var streamCfg in streamsConfig)
@@ -33,8 +34,12 @@ namespace VideoStreamer
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc();
+
             services.AddDistributedMemoryCache();
-            services.AddSession();
+            services.AddSession(options =>
+			{
+				options.IdleTimeout = TimeSpan.FromMinutes(1.0);
+			});
         }
   
         public void Configure(
@@ -47,8 +52,8 @@ namespace VideoStreamer
             {
                 app.UseDeveloperExceptionPage();
             }
+			app.UseSession();
             app.UseMvc();
-            app.UseSession();
             app.UseStaticFiles();
         }
     }

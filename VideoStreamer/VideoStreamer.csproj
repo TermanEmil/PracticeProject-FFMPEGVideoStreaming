@@ -15,6 +15,7 @@
     <Folder Include="wwwroot\js\" />
     <Folder Include="Views\LogFile\" />
     <Folder Include="Models\LogFileViewModels\" />
+    <Folder Include="Utils\" />
   </ItemGroup>
 
   <ItemGroup>
@@ -22,6 +23,7 @@
     <PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
     <PackageReference Include="Microsoft.AspNetCore.Session" Version="2.1.1" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="2.1.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
   </ItemGroup>
 
   <ItemGroup>
@@ -1887,9 +1889,12 @@
     <None Remove="logFile.log" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\ProcessStreamer\FFMPEGStreamingTools.csproj" />
+    <Content Remove="wwwroot\ffmpegChunks\RadioMD\2018\06\28\1530183930.ts" />
   </ItemGroup>
   <ItemGroup>
-    <Content Remove="wwwroot\ffmpegChunks\RadioMD\2018\06\28\1530183930.ts" />
+    <ProjectReference Include="..\FFMPEGStreamingTools\FFMPEGStreamingTools.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="Properties\SessionCfg.cs" />
   </ItemGroup>
 </Project>

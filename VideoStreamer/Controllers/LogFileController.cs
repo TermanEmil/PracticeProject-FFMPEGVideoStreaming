@@ -9,6 +9,8 @@ using FFMPEGStreamingTools.StreamingSettings;
 using VideoStreamer.Models.LogFileViewModels;
 using FFMPEGStreamingTools.Utils;
 using FFMPEGStreamingTools.M3u8Generators;
+using Microsoft.AspNetCore.Http;
+using VideoStreamer.Utils;
 
 // For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -20,9 +22,11 @@ namespace VideoStreamer.Controllers
 		private readonly FFMPEGConfig _ffmpegCfg;
 		private readonly List<StreamConfig> _streamsCfg;
 		private readonly PlaylistGenerator _m3u8Generator;
+		private readonly IConfiguration _cfg;
 
 		public LogFileController(IConfiguration cfg)
         {
+			_cfg = cfg;
 			ConfigLoader.Load(cfg, out _ffmpegCfg, out _streamsCfg);
 			_m3u8Generator = new PlaylistGenerator();
         }
@@ -40,27 +44,22 @@ namespace VideoStreamer.Controllers
 
         [HttpPost("api/[controller]/GetData")]
         public JsonResult GetLastPlayerFile(
-            string channel ="",
+            string channel = "",
             int millSecondRequest = 1000,
-            int hlsListSize = 5)
+            int hlsListSize = 5,
+		    int timeShiftMills = 0)
         {
-            var content = "";
+			var content = StreamerController.GetRawPlaylist(
+				HttpContext.Session,
+				_ffmpegCfg, _streamsCfg,
+				channel,
+				DateTime.Now.AddMilliseconds(-timeShiftMills),
+				hlsListSize,
+				out var exception);
 
-            try
-            {
-				content = _m3u8Generator.GenerateM3U8Str(
-                    channel,
-                    DateTime.Now,
-					_ffmpegCfg,
-					_streamsCfg,
-                    hlsListSize
-                );
-            }
-            catch (Exception e)
-            {
-                content = e.Message;
-            }
-
+			if (exception != null)
+				content = exception.Message;
+            
             return  Json(new 
             {
                 content = content.Replace("\n", "<br>")

@@ -8,7 +8,7 @@ using System.Net;
 namespace VideoStreamer.Controllers
 {
     [Route("api/[controller]")]
-    public class ProcessMonitor : Controller
+    public class ProcessMonitorController : Controller
     {
         public IActionResult Index()
         {

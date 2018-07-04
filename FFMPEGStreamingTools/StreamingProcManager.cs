@@ -44,6 +44,7 @@ namespace FFMPEGStreamingTools
             
 			var procInfo = new ProcessStartInfo();
 			procInfo.FileName = ffmpegCfg.BinaryPath;
+			procInfo.UseShellExecute = true;
 			streamCfg.Name = streamCfg.Name;
    
 			var segmentFilename =

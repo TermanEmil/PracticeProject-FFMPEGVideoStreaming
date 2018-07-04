@@ -13,6 +13,8 @@ namespace FFMPEGStreamingTools.M3u8Generators
 {   
 	public class PlaylistGenerator
     {
+		// This number indicates how many extra chunks there are.
+		// In total, there will be at least hlsListSize + (this number) chunks.
 		private readonly int safeHlsLstDelta = 1;
 
 		public string GenerateM3U8Str(
@@ -20,6 +22,7 @@ namespace FFMPEGStreamingTools.M3u8Generators
 			DateTime time,
 			FFMPEGConfig ffmpegCfg,
 			IEnumerable<StreamConfig> streamsCfgs,
+			ref StreamRequestState streamRequestState,
 			int hlsLstSize = 5)
 		{
 			var streamCfg = streamsCfgs.FirstOrDefault(x => x.Name == channel);
@@ -27,47 +30,67 @@ namespace FFMPEGStreamingTools.M3u8Generators
 				throw new NoSuchChannelException(streamCfg.Name);
 
 			var channelRoot = $"{ffmpegCfg.ChunkStorageDir}/{channel}/";
-			var targetTime = GetMinChunkTimeSpan(
-				hlsLstSize + safeHlsLstDelta,
-				streamCfg.ChunkTime,
+
+			var fileChunks = GatherRequiredChunks(
+				streamCfg,
 				time,
+				hlsLstSize,
 				channelRoot);
-
-            var targetTimeS = targetTime.Add(-DateTimeOffset.Now.Offset)
-                                        .ToUnixTimeSeconds();
-			
-			var chunks =
-				Directory.GetFiles(channelRoot, "*.ts", SearchOption.AllDirectories)
-			        .Select(x => new ChunkFile(x))
-			        .Where(x =>
-				           x.timeSeconds >= targetTimeS - streamCfg.ChunkTime)
-			        .OrderBy(x => x.timeSeconds)
-			        .Take(hlsLstSize + safeHlsLstDelta)
-			        .ToArray();
-
-			if (chunks.Length != hlsLstSize + safeHlsLstDelta)
-			{
-				throw new NoAvailableFilesException(
-					chunks.Length,
-					hlsLstSize + safeHlsLstDelta,
-					$"(+{safeHlsLstDelta})");
-			}
-
-			var fileChunks = GetConsecutiveChunks(chunks).Take(hlsLstSize)
-			                                            .ToArray();
-
-			if (fileChunks.Length != hlsLstSize)
-			{
-				throw new NoAvailableFilesException(
-					fileChunks.Length,
-					hlsLstSize);
-			}
 
 			return CombineChunksIntoM3U8(
 				streamCfg,
 				fileChunks,
 				channelRoot,
 				channel);
+		}
+
+		private IEnumerable<ChunkFile> GatherRequiredChunks(
+			StreamConfig streamCfg,
+			DateTime time,
+		    int hlsLstSize,
+			string channelRoot)
+		{
+			var targetTime = GetMinChunkTimeSpan(
+                hlsLstSize + safeHlsLstDelta,
+                streamCfg.ChunkTime,
+                time,
+                channelRoot);
+
+            var targetTimeS = targetTime.Add(-DateTimeOffset.Now.Offset)
+                                        .ToUnixTimeSeconds();
+
+			var files = Directory.GetFiles(
+				channelRoot,
+				"*.ts",
+				SearchOption.AllDirectories);
+			
+            var chunks = 
+				files.Select(x => new ChunkFile(x))
+                     .Where(x =>
+				            x.timeSeconds >= targetTimeS - streamCfg.ChunkTime)
+				     .OrderBy(x => x.timeSeconds)
+                     .Take(hlsLstSize + safeHlsLstDelta)
+                     .ToArray();
+
+            if (chunks.Length != hlsLstSize + safeHlsLstDelta)
+            {
+                throw new NoAvailableFilesException(
+                    chunks.Length,
+                    hlsLstSize + safeHlsLstDelta,
+                    $"(+{safeHlsLstDelta})");
+            }
+
+            var fileChunks = GetConsecutiveChunks(chunks).Take(hlsLstSize)
+                                                         .ToArray();
+
+            if (fileChunks.Length != hlsLstSize)
+            {
+                throw new NoAvailableFilesException(
+                    fileChunks.Length,
+                    hlsLstSize);
+            }
+
+			return fileChunks;
 		}
 
 		private string CombineChunksIntoM3U8(
@@ -86,8 +109,13 @@ namespace FFMPEGStreamingTools.M3u8Generators
             content += ",\n";
 
 			foreach (var file in fileChunks)
-            {            
-                if (StreamingProcManager.instance.chunkDiscontinuities[channel].Contains(file.index))
+            {
+				var isDiscont =
+					StreamingProcManager.instance
+					                    .chunkDiscontinuities[channel]
+					                    .Contains(file.index);
+				
+				if (isDiscont)
                     content += "#EXT-X-DISCONTINUITY\n";
 
                 content += $"#EXTINF:{streamCfg.ChunkTime},\n";

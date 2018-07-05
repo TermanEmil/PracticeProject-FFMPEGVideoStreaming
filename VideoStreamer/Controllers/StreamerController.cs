@@ -42,7 +42,22 @@ namespace VideoStreamer.Controllers
 			if (timeStr == null)
 				requiredTime = DateTime.Now;
 			else
-				requiredTime = ProcessFixedTime(timeStr, channel);
+			{
+				try
+				{
+					requiredTime = ProcessFixedTime(timeStr, channel);
+				}
+				catch (JsonReaderException)
+				{
+					return new ContentResult
+					{
+						Content = "Invalid time format. " +
+							"Example: 2018-07-04T16:52:00%2B03:00, " +
+							"where '%2B' stands for '+'"
+					};
+				}
+
+			}
 
             if (timeShiftMills > 0)
                 requiredTime = requiredTime.AddMilliseconds(-timeShiftMills);
@@ -56,8 +71,7 @@ namespace VideoStreamer.Controllers
 			string channel)
 		{
 			var time = JsonConvert.DeserializeObject<DateTime>(timeStr);
-            
-
+                     
             var reqState = HttpContext.Session.GetStreamRequestState();
             if (reqState == null ||
                 reqState.Channel != channel ||

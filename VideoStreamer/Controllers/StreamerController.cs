@@ -16,6 +16,7 @@ using Newtonsoft.Json;
 using System.Text.RegularExpressions;
 using System.Linq;
 using System.Threading;
+using VideoStreamer.DB;
 
 namespace VideoStreamer.Controllers
 {
@@ -25,7 +26,9 @@ namespace VideoStreamer.Controllers
 		private readonly FFMPEGConfig _ffmpegCfg;
 		private readonly List<StreamConfig> _streamsCfg;
 
-		public StreamerController(IConfiguration cfg)
+		public StreamerController(
+			IConfiguration cfg,
+		    StreamerContext dbContext)
 		{
 			ConfigLoader.Load(cfg, out _ffmpegCfg, out _streamsCfg);
 		}

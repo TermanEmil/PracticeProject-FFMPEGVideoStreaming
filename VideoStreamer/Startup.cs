@@ -12,6 +12,8 @@ using Microsoft.Extensions.Options;
 using FFMPEGStreamingTools;
 using FFMPEGStreamingTools.StreamingSettings;
 using FFMPEGStreamingTools.Utils;
+using VideoStreamer.DB;
+using Microsoft.EntityFrameworkCore;
 
 namespace VideoStreamer
 {
@@ -36,10 +38,11 @@ namespace VideoStreamer
             services.AddMvc();
 
             services.AddDistributedMemoryCache();
-            services.AddSession(options =>
-			{
-				//options.IdleTimeout = TimeSpan.FromMinutes(1.0);
-			});
+            services.AddSession();
+
+			var connectionStr = Cfg["DBConnectionStr"];
+			services.AddDbContext<StreamerContext>(
+				o => o.UseSqlite(connectionStr));
         }
   
         public void Configure(

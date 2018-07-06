@@ -13,25 +13,17 @@ namespace FFMPEGStreamingTools
     public class StreamingProcManager
     {
 		public static StreamingProcManager instance;
-
-		public bool logToFile = false;      
-		private StreamWriter logFile;
-
+        
 		public List<Process> processes = new List<Process>();
 
-        // Sets of chunk indexes where are discontinuities.
+        // Sets of chunk indexes with file discontinuities.
 		// Used in M3U8 generator.
 		public Dictionary<string, HashSet<int>> chunkDiscontinuities =
 			new Dictionary<string, HashSet<int>>();
-        
+          
 		public StreamingProcManager()
 		{
 			instance = this;
-			if (logToFile)
-			{
-				var fileStream = new FileStream("logFile.log", FileMode.Create);
-				logFile = new StreamWriter(fileStream);
-			}
 		}
 
 		public void StartChunking(
@@ -76,12 +68,6 @@ namespace FFMPEGStreamingTools
 			    m3u8File
 			});
 
-			if (logToFile)
-			{
-				procInfo.RedirectStandardOutput = true;
-				procInfo.RedirectStandardError = true;
-			}
-
 			var proc = new Process
 			{
 				StartInfo = procInfo,
@@ -89,22 +75,10 @@ namespace FFMPEGStreamingTools
 			};
 
 			proc.Exited += GenerateOnExitHandler(ffmpegCfg, streamCfg);
+   
+			processes.Add(proc);
 
-			if (logToFile)
-			{            
-				proc.ErrorDataReceived += OutputErrDataReceived;
-				proc.OutputDataReceived += OutputDataReceived;
-			}
-
-			proc.Start();
-
-			if (logToFile)
-			{
-				proc.BeginOutputReadLine();
-				proc.BeginErrorReadLine();
-			}
-
-			processes.Add(proc);         
+			proc.Start();         
 			proc.WaitForExit();         
 		}
 
@@ -121,11 +95,8 @@ namespace FFMPEGStreamingTools
                     "[Restarting]: lastID = {0} | {1}",
                     lastID,
                     streamCfg.Name);
-
-                if (logToFile)
-                    logFile.WriteLine(log);
-                else
-                    Console.WriteLine(log);
+    
+                Console.WriteLine(log);
 
                 var nextID = lastID + 1;
                 if (!chunkDiscontinuities[streamCfg.Name].Contains(nextID))
@@ -134,17 +105,7 @@ namespace FFMPEGStreamingTools
                 StartChunking(ffmpegCfg, streamCfg, nextID);
             };
 		}
-
-		private void OutputDataReceived(object s, DataReceivedEventArgs e)
-		{
-			logFile.WriteLine(e.Data);
-		}
-
-		private void OutputErrDataReceived(object s, DataReceivedEventArgs e)
-        {
-			logFile.WriteLine("<[Error]>: " + e.Data);
-        }
-
+        
 		private int GetLastProducedIndex(
 			FFMPEGConfig ffmpegCfg,
 			StreamConfig streamCfg)

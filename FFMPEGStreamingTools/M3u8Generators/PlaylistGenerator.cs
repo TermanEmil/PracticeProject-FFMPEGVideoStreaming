@@ -58,18 +58,28 @@ namespace FFMPEGStreamingTools.M3u8Generators
             var targetTimeS = targetTime.Add(-DateTimeOffset.Now.Offset)
                                         .ToUnixTimeSeconds();
 
-			var files = Directory.GetFiles(
+			var stopwatch = new Stopwatch();
+			stopwatch.Start();
+
+			var files = GetFilesInsideTimeRange(
 				channelRoot,
-				"*.ts",
-				SearchOption.AllDirectories);
+				targetTime.AddSeconds(-1.2 * streamCfg.ChunkTime),
+				DateTime.Now.AddMinutes(1));
 			
-            var chunks = 
+			stopwatch.Stop();
+			Console.WriteLine($"[Stopwatch]: DirectoryGetFiles: {stopwatch.ElapsedMilliseconds}");         
+			stopwatch.Restart();
+
+			var safeTargetTime = targetTime.AddSeconds(-streamCfg.ChunkTime);
+			var chunks =
 				files.Select(x => new ChunkFile(x))
-                     .Where(x =>
-				            x.timeSeconds >= targetTimeS - streamCfg.ChunkTime)
-				     .OrderBy(x => x.timeSeconds)
-                     .Take(hlsLstSize + safeHlsLstDelta)
+				     .Where(x => x.timeSeconds >= targetTimeS - streamCfg.ChunkTime)
+				     .OrderBy(x => x.timeSeconds).ThenBy(x => x.index)
+				     .Take(hlsLstSize + safeHlsLstDelta)
                      .ToArray();
+			
+			stopwatch.Stop();
+			Console.WriteLine($"[Stopwatch]: Select Chunks: {stopwatch.ElapsedMilliseconds}");
 
             if (chunks.Length != hlsLstSize + safeHlsLstDelta)
             {
@@ -138,10 +148,22 @@ namespace FFMPEGStreamingTools.M3u8Generators
             DateTime targetTime,
             string chunksRoot)
         {
+			var stopwatch = new Stopwatch();
+			stopwatch.Start();
+
             var mostRecent =
-                Directory.GetFiles(chunksRoot, "*.ts", SearchOption.AllDirectories)
-                         .OrderByDescending(File.GetLastWriteTime)
-                         .First();
+				GetFilesInsideTimeRange(
+					chunksRoot,
+					targetTime.AddSeconds(-1.2 * chunkTime),
+					DateTime.Now
+				).OrderByDescending(File.GetLastWriteTime)
+				 .FirstOrDefault();
+
+			if (mostRecent == null)
+				throw new NoAvailableFilesException(0, chunksCount);
+
+			stopwatch.Stop();
+			Console.WriteLine($"[Stopwatch]: GetNewest: {stopwatch.ElapsedMilliseconds}");
 
             var newestChunk = new ChunkFile(mostRecent);
             var newestDateTime = TimeTools
@@ -179,6 +201,22 @@ namespace FFMPEGStreamingTools.M3u8Generators
                 lastChunk = chunk;
             }
         }
+
+		private List<string> GetFilesInsideTimeRange(
+			string root,
+			DateTime minTime,
+			DateTime maxTime)
+		{         
+			var result = new List<string>();
+			for (var time = minTime; time < maxTime; time = time.AddMinutes(1))
+			{
+				var dir = root + GetDirOfDateTime(time);
+				if (Directory.Exists(dir))
+				    result.AddRange(Directory.GetFiles(dir));
+			}
+
+			return result;
+		}
 
 		private string GetDirOfDateTime(DateTime time)
 		{

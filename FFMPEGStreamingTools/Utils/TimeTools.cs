@@ -7,9 +7,9 @@ namespace FFMPEGStreamingTools.Utils
 		public readonly static DateTime unixEpoch =
 			new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-		public static int ToUnixTimeSeconds(this DateTime time)
+		public static double ToUnixTimeSeconds(this DateTime time)
 		{
-			return (int)time.Subtract(unixEpoch).TotalSeconds;
+			return time.Subtract(unixEpoch).TotalSeconds;
 		}
 
 		public static DateTime SecondsToDateTime(int seconds)
@@ -17,7 +17,7 @@ namespace FFMPEGStreamingTools.Utils
 			return unixEpoch.AddSeconds(seconds);
 		}
 
-		public static int CurrentSeconds()
+		public static double CurrentSeconds()
 		{
 			return DateTime.Now.Add(-DateTimeOffset.Now.Offset)
 				           .ToUnixTimeSeconds();

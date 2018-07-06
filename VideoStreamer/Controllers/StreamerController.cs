@@ -35,10 +35,11 @@ namespace VideoStreamer.Controllers
 			string channel,
 			int listSize = 5,
 			string timeStr = null,
-		    int timeShiftMills = 0)
+		    int timeShiftMills = 0,
+			string token = null)
 		{
 			DateTime requiredTime;
-
+            
 			if (timeStr == null)
 				requiredTime = DateTime.Now;
 			else
@@ -55,13 +56,12 @@ namespace VideoStreamer.Controllers
 							"Example: 2018-07-04T16:52:00%2B03:00, " +
 							"where '%2B' stands for '+'"
 					};
-				}
-
+				}            
 			}
 
             if (timeShiftMills > 0)
                 requiredTime = requiredTime.AddMilliseconds(-timeShiftMills);
-
+			
             return await Task.Run(
                 () => GetPlaylistActionResult(channel, requiredTime, listSize));
 		}
@@ -155,7 +155,8 @@ namespace VideoStreamer.Controllers
 			string day,
 			string hour,
 			string minute,
-			string fileName)
+			string fileName,
+			string token = null)
 		{
 			var path = Path.Combine(
 				_ffmpegCfg.ChunkStorageDir,

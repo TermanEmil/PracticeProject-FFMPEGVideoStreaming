@@ -20,7 +20,7 @@ namespace FFMPEGStreamingTools
 		// Used in M3U8 generator.
 		public Dictionary<string, HashSet<int>> chunkDiscontinuities =
 			new Dictionary<string, HashSet<int>>();
-          
+
 		public StreamingProcManager()
 		{
 			instance = this;
@@ -95,7 +95,7 @@ namespace FFMPEGStreamingTools
                     "[Restarting]: lastID = {0} | {1}",
                     lastID,
                     streamCfg.Name);
-    
+
                 Console.WriteLine(log);
 
                 var nextID = lastID + 1;

@@ -5,5 +5,7 @@ namespace VideoStreamer.DB
     {
 		public string ID { get; set; }
 		public string Channel { get; set; }
+		public string LastFilePath { get; set; }
+		public DateTime ExpireTime { get; set; }
     }
 }

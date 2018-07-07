@@ -7,7 +7,7 @@ namespace VideoStreamer.DB
     {
 		public StreamerContext(DbContextOptions<StreamerContext> options)
 			: base(options)
-        {         
+        {
         }
 
 		public DbSet<StreamingSession> StreamingSessions { get; set; }

@@ -2,8 +2,10 @@
 
 while true
 do
-	_pid="$(pgrep -f dot)"
-	if [ -z "$_pid" ]
+	_pid="$(pgrep -f dotnet)"
+	_cmd="$(ps -o command $_pid | grep VideoStreamer.dll)"
+	
+	if [[ -z "$_pid" || -z "$_cmd" ]]
 	then
 		if [[ $* != *-s* ]]
 		then

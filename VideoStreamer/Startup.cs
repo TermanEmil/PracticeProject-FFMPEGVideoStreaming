@@ -1,5 +1,6 @@
 ﻿using System.Threading.Tasks;
 using FFMPEGStreamingTools;
+using FFMPEGStreamingTools.M3u8Generators;
 using FFMPEGStreamingTools.Utils;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -19,7 +20,7 @@ namespace VideoStreamer
 		public Startup(IConfiguration cfg)
         {
 			Cfg = cfg;
-			ConfigLoader.Load(cfg, out var ffmpegConfig, out var streamsConfig);
+			FFMPEGConfigLoader.Load(cfg, out var ffmpegConfig, out var streamsConfig);
 			procManager = new StreamingProcManager();         
 			foreach (var streamCfg in streamsConfig)
 			{
@@ -30,9 +31,8 @@ namespace VideoStreamer
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc();
-
-            services.AddDistributedMemoryCache();
-            services.AddSession();
+   
+			services.AddTransient<IM3U8Generator, M3U8GeneratorDefault>();
 
 			var connectionStr = Cfg["DBConnectionStr"];
 			services.AddDbContext<StreamerContext>(
@@ -49,7 +49,7 @@ namespace VideoStreamer
             {
                 app.UseDeveloperExceptionPage();
             }
-			app.UseSession();
+
             app.UseMvc();
             app.UseStaticFiles();
         }

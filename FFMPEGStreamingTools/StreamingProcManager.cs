@@ -15,6 +15,7 @@ namespace FFMPEGStreamingTools
 		public static StreamingProcManager instance;
         
 		public List<Process> processes = new List<Process>();
+		public bool LogToStdout { get; set; } = true;
 
         // Sets of chunk indexes with file discontinuities.
 		// Used in M3U8 generator.
@@ -67,6 +68,9 @@ namespace FFMPEGStreamingTools
 			    "-hls_segment_filename " + segmentFilename,
 			    m3u8File
 			});
+
+			procInfo.RedirectStandardOutput = !LogToStdout;
+			procInfo.RedirectStandardError = !LogToStdout;
 
 			var proc = new Process
 			{

@@ -2,15 +2,17 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using VideoStreamer.DB;
 
 namespace VideoStreamer.Migrations
 {
     [DbContext(typeof(StreamerContext))]
-    partial class StreamerContextModelSnapshot : ModelSnapshot
+    [Migration("20180709123312_AddedDisplayContentField")]
+    partial class AddedDisplayContentField
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

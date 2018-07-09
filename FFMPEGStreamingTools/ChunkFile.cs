@@ -9,7 +9,6 @@ namespace FFMPEGStreamingTools
         public string fullPath;
         public int timeSeconds;
         public int index;
-		public DateTime creationTime;
 		      
         public ChunkFile(string fullPath)
         {

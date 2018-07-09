@@ -13,10 +13,11 @@
     <Folder Include="Models\LivePlayerViewModels\" />
     <Folder Include="Views\ProcessMonitor\" />
     <Folder Include="wwwroot\js\" />
-    <Folder Include="Views\LogFile\" />
     <Folder Include="Models\LogFileViewModels\" />
     <Folder Include="Utils\" />
     <Folder Include="DB\" />
+    <Folder Include="Views\Streamer\" />
+    <Folder Include="Models\Configs\" />
   </ItemGroup>
 
   <ItemGroup>
@@ -39,6 +40,8 @@
   <ItemGroup>
     <Compile Remove="Properties\SessionCfg.cs" />
     <Compile Remove="Migrations\20180706114901_InitialCreate.cs" />
+    <Compile Remove="Controllers\LogFileController.cs" />
+    <Compile Remove="Controllers\SessionBrokerController.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Microsoft.Extensions.PlatformAbstractions">
@@ -86,5 +89,8 @@
     <Reference Include="Microsoft.Data.OData">
       <HintPath>..\..\..\..\..\usr\local\share\dotnet\sdk\NuGetFallbackFolder\microsoft.data.odata\5.8.2\lib\netstandard1.1\Microsoft.Data.OData.dll</HintPath>
     </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Remove="Views\LogFile\Index.cshtml" />
   </ItemGroup>
 </Project>

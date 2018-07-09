@@ -2,15 +2,17 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using VideoStreamer.DB;
 
 namespace VideoStreamer.Migrations
 {
     [DbContext(typeof(StreamerContext))]
-    partial class StreamerContextModelSnapshot : ModelSnapshot
+    [Migration("20180709105525_AddedStreamSessionStuff")]
+    partial class AddedStreamSessionStuff
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -22,8 +24,6 @@ namespace VideoStreamer.Migrations
                         .ValueGeneratedOnAdd();
 
                     b.Property<string>("Channel");
-
-                    b.Property<bool>("DisplayContent");
 
                     b.Property<DateTime>("ExpireTime");
 

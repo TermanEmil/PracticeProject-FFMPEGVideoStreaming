@@ -5,7 +5,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace FFMPEGStreamingTools.Utils
 {
-	public static class ConfigLoader
+	public static class FFMPEGConfigLoader
     {
 		public static void Load(
 			IConfiguration cfg,

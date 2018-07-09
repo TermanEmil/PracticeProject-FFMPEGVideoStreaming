@@ -15,7 +15,7 @@ namespace VideoStreamer.Controllers
 
 		public LivePlayerController(IConfiguration cfg)
         {
-			ConfigLoader.Load(cfg, out _ffmpegCfg, out _streamsCfg);
+			FFMPEGConfigLoader.Load(cfg, out _ffmpegCfg, out _streamsCfg);
         }
         public IActionResult Index(string channel)
         {

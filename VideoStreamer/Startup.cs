@@ -9,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using VideoStreamer.DB;
+using VideoStreamer.Utils;
 
 namespace VideoStreamer
 {
@@ -20,12 +21,22 @@ namespace VideoStreamer
 		public Startup(IConfiguration cfg)
         {
 			Cfg = cfg;
-			FFMPEGConfigLoader.Load(cfg, out var ffmpegConfig, out var streamsConfig);
+			FFMPEGConfigLoader.Load(
+				cfg,
+				out var ffmpegConfig,
+				out var streamsConfig
+			);
+
 			procManager = new StreamingProcManager();         
 			foreach (var streamCfg in streamsConfig)
 			{
-				Task.Run(() => procManager.StartChunking(ffmpegConfig, streamCfg));
+				Task.Run(
+					() => procManager.StartChunking(ffmpegConfig, streamCfg));
 			}
+
+			StreamerSessionCleaner.cleanupIntervalSeconds =
+		        Cfg.GetSection("StreamingSessionsConfig:CleanupIntervalSeconds")
+                   .Get<double>();
         }
         
         public void ConfigureServices(IServiceCollection services)
@@ -36,7 +47,7 @@ namespace VideoStreamer
 
 			var connectionStr = Cfg["DBConnectionStr"];
 			services.AddDbContext<StreamerContext>(
-				o => o.UseSqlite(connectionStr));
+				o => o.UseSqlite(connectionStr));         
         }
   
         public void Configure(

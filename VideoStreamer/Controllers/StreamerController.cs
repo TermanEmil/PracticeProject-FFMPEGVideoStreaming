@@ -14,6 +14,7 @@ using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using VideoStreamer.DB;
 using VideoStreamer.Models.Configs;
+using VideoStreamer.Utils;
 
 namespace VideoStreamer.Controllers
 {
@@ -27,6 +28,7 @@ namespace VideoStreamer.Controllers
 		private readonly StreamerSessionCfg _sessionCfg;
 
 		public StreamerController(
+			IServiceProvider serviceProvider,
 			IConfiguration cfg,
 			IM3U8Generator m3u8Generator,
 			StreamerContext dbContext)
@@ -36,6 +38,9 @@ namespace VideoStreamer.Controllers
 			_dbContext = dbContext;
 			_sessionCfg = cfg.GetSection("StreamingSessionsConfig")
 			                 .Get<StreamerSessionCfg>();
+
+			StreamerSessionCleaner.TryCleanupExpiredSession(serviceProvider)
+			                      .Wait();
 		}
         
 		[Route("Stream/{channel}/index.m3u8")]

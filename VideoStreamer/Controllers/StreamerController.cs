@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using FFMPEGStreamingTools;
@@ -36,10 +37,13 @@ namespace VideoStreamer.Controllers
 			FFMPEGConfigLoader.Load(cfg, out _ffmpegCfg, out _streamsCfg);
 			_m3u8Generator = m3u8Generator;
 			_dbContext = dbContext;
+
 			_sessionCfg = cfg.GetSection("StreamingSessionsConfig")
 			                 .Get<StreamerSessionCfg>();
+			_sessionCfg.CheckForEnvironmentalues();
+			var vars = Environment.GetEnvironmentVariables();
 
-			StreamerSessionCleaner.TryCleanupExpiredSession(serviceProvider)
+		  	StreamerSessionCleaner.TryCleanupExpiredSession(serviceProvider)
 			                      .Wait();
 		}
         
@@ -133,6 +137,7 @@ namespace VideoStreamer.Controllers
 
 			return new StreamingSession
             {
+				ID = GenerateToken(channel),
                 Channel = channel,
                 HlsListSize = listSize,
                 ExpireTime = expTime,
@@ -299,6 +304,28 @@ namespace VideoStreamer.Controllers
 			actionResult = NotFound();
 			return null;
 		}
+        
+		private string GenerateToken(string channel)
+		{
+			var str =
+				channel +
+				(HttpContext.Connection.RemoteIpAddress) +
+				(DateTime.Now) +
+				(_sessionCfg.TokenSALT);
+
+			return SHA256Encrypt(str);
+		}
+
+		public static string SHA256Encrypt(string phrase)
+        {
+            var sha256hasher = new SHA256Managed();
+			var hashedDataBytes = sha256hasher.ComputeHash(
+				Encoding.UTF8.GetBytes(phrase));
+            
+			return Convert.ToBase64String(hashedDataBytes)
+				          .Replace("+", "-")
+				          .Replace("/", "_");
+        }
         #endregion
 	}
 }

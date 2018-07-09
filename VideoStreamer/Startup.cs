@@ -52,9 +52,7 @@ namespace VideoStreamer
   
         public void Configure(
 			IApplicationBuilder app,
-            IHostingEnvironment env,
-            ILoggerFactory loggerFactory,
-            IApplicationLifetime applicationLifetime)
+            IHostingEnvironment env)
         {
             if (env.IsDevelopment())
             {

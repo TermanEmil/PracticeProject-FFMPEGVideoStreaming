@@ -11,5 +11,15 @@ namespace VideoStreamer.Models.Configs
     public class StreamerSessionCfg
     {
 		public double ExpirationTimeSeconds { get; set; }
+        public string TokenSALT { get; set; }
+
+		public void CheckForEnvironmentalues()
+		{
+			if (TokenSALT[0] == '$')
+			{
+				var envVarName = TokenSALT.Substring(1);
+				TokenSALT = Environment.GetEnvironmentVariable(envVarName);
+			}
+		}
     }
 }

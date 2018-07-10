@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging;
 using VideoStreamer.DB;
 using VideoStreamer.Utils;
 using Serilog.Extensions.Logging;
+using FFMPEGStreamingTools.TokenBrokers;
 
 namespace VideoStreamer
 {
@@ -74,7 +75,7 @@ namespace VideoStreamer
 
             // Custom stuff
             services.AddTransient<IM3U8Generator, M3U8GeneratorDefault>();
-
+			services.AddTransient<ITokenBroker, SHA256TokenBroker>();
         }
 
         public void Configure(
@@ -87,7 +88,7 @@ namespace VideoStreamer
                 app.UseDeveloperExceptionPage();
             }
 
-			loggerFactory.AddFile("Logs/ts-{Date}.txt");
+			loggerFactory.AddFile("Logs/ts-{Date}.log");
 
             app.UseMvc();
             app.UseStaticFiles();

@@ -14,8 +14,10 @@ namespace FFMPEGStreamingTools
     public class StreamingProcManager
     {
 		public static StreamingProcManager instance;
-        
-		public List<Process> processes = new List<Process>();
+
+        public Dictionary<String, Process> processes = new
+            Dictionary<String, Process>();
+		//public List<Process> processes = new List<Process>();
 		public bool LogToStdout { get; set; } = true;
 
 		// Sets of chunk indexes with file discontinuities.
@@ -86,7 +88,7 @@ namespace FFMPEGStreamingTools
 			proc.Exited += GenerateOnExitHandler(ffmpegCfg, streamCfg);
    
 			proc.Start();         
-			processes.Add(proc);
+            processes.Add(streamCfg.Name, proc);
 			proc.WaitForExit();
 		}
 
@@ -96,7 +98,7 @@ namespace FFMPEGStreamingTools
 		{
 			return (o, s) =>
             {
-                processes.Remove(o as Process);
+                processes.Remove(processes.FirstOrDefault(x => x.Value == o as Process).Key);
                 var lastID = GetLastProducedIndex(ffmpegCfg, streamCfg);
 
 				if (lastID == -1)

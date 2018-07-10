@@ -18,5 +18,30 @@
     "Link": "http://89.28.21.86/JurnalTV_HD/tracks-v4a1/mono.m3u8",
     "Name": "JurnalTV",
     "ChunkTime": 2
+  },
+  {
+    "Link": "http://radiolive.trm.md:8000/PGM1_128kb",
+    "Name": "RadioMD1",
+    "ChunkTime": 2
+  },
+  {
+    "Link": "http://radiolive.trm.md:8000/PGM1_128kb",
+    "Name": "RadioMD3",
+    "ChunkTime": 2
+  },
+  {
+    "Link": "http://radiolive.trm.md:8000/PGM1_128kb",
+    "Name": "RadioMD3790",
+    "ChunkTime": 2
+  },
+  {
+    "Link": "http://radiolive.trm.md:8000/PGM1_128kb",
+    "Name": "RadioMD379011111",
+    "ChunkTime": 2
+  },
+  {
+    "Link": "http://radiolive.trm.md:8000/PGM1_128kb",
+    "Name": "RadioMD379011111LOL",
+    "ChunkTime": 2
   }
 ]

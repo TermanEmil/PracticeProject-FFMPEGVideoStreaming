@@ -26,12 +26,7 @@
     @foreach (var x in @Model._StreamingProcesses)
     {
       <tr>
-      <td style="text-align : center"; >@x.Id </td>
-      <td style="text-align : center"; >>@x.MachineName </td>
-      <td style="text-align : center"; >@x.StartTime</td>
-      <td style="text-align : center";> @x.PrivilegedProcessorTime</td>
-      <td ><div class = "ex1">@(x.StartInfo.FileName + " " + x.StartInfo.Arguments)</div> </td>
-
+     
       </tr>
     }
 </table>

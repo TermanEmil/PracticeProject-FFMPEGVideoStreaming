@@ -11,11 +11,11 @@ namespace VideoStreamer.Controllers
     public class LivePlayerController : Controller
     {
 		private readonly FFMPEGConfig _ffmpegCfg;
-		private readonly List<StreamConfig> _streamsCfg;
+		private readonly List<Channel> _streamsCfg;
 
 		public LivePlayerController(IConfiguration cfg)
         {
-			FFMPEGConfigLoader.Load(cfg, out _ffmpegCfg, out _streamsCfg);
+			FFMPEGConfigLoader.Load(out _ffmpegCfg, out _streamsCfg);
         }
         public IActionResult Index(string channel)
         {

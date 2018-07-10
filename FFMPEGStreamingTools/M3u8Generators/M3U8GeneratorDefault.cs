@@ -20,7 +20,7 @@ namespace FFMPEGStreamingTools.M3u8Generators
 
 		public M3U8Playlist GenerateM3U8(
 			FFMPEGConfig ffmpegCfg,
-			IEnumerable<StreamConfig> streamsCfgs,
+			IEnumerable<Channel> streamsCfgs,
 			string channel,
 			DateTime time,
 			int hlsLstSize)
@@ -71,7 +71,7 @@ namespace FFMPEGStreamingTools.M3u8Generators
 
 		public M3U8Playlist GenerateNextM3U8(
 			FFMPEGConfig ffmpegCfg,
-			IEnumerable<StreamConfig> streamsCfgs,
+			IEnumerable<Channel> streamsCfgs,
 			string channel,
 			int hlsLstSize,
 			int lastFileIndex,
@@ -119,9 +119,9 @@ namespace FFMPEGStreamingTools.M3u8Generators
 
 		private void BasicInitializations(
 			FFMPEGConfig ffmpegCfg,
-            IEnumerable<StreamConfig> streamsCfgs,
+            IEnumerable<Channel> streamsCfgs,
             string channel,
-			out StreamConfig streamCfg,
+			out Channel streamCfg,
 			out string channelRoot)
 		{
 			streamCfg = streamsCfgs.FirstOrDefault(x => x.Name == channel);

@@ -26,7 +26,6 @@ namespace VideoStreamer
         {
 			Cfg = cfg;
 			FFMPEGConfigLoader.Load(
-				cfg,
 				out var ffmpegConfig,
 				out var streamsConfig
 			);

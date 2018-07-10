@@ -25,7 +25,7 @@ namespace VideoStreamer.Controllers
 	public class StreamerController : Controller
 	{      
 		private readonly FFMPEGConfig _ffmpegCfg;
-		private readonly List<StreamConfig> _streamsCfg;
+		private readonly List<Channel> _streamsCfg;
 		private readonly IM3U8Generator _m3u8Generator;
 		private readonly StreamerContext _dbContext;
 		private readonly IDistributedCache _cache;
@@ -40,7 +40,7 @@ namespace VideoStreamer.Controllers
 			IDistributedCache cache,
 			ITokenBroker tokenBroker)
 		{
-			FFMPEGConfigLoader.Load(cfg, out _ffmpegCfg, out _streamsCfg);
+			FFMPEGConfigLoader.Load(out _ffmpegCfg, out _streamsCfg);
 			_m3u8Generator = m3u8Generator;
 			_dbContext = dbContext;
 			_cache = cache;

@@ -31,7 +31,7 @@ namespace FFMPEGStreamingTools
 
 		public void StartChunking(
 			FFMPEGConfig ffmpegCfg,
-			StreamConfig streamCfg,
+			Channel streamCfg,
 		    int startNumber = 0)
 		{
 			if (!chunkDiscontinuities.ContainsKey(streamCfg.Name))
@@ -92,7 +92,7 @@ namespace FFMPEGStreamingTools
 
 		private EventHandler GenerateOnExitHandler(
 			FFMPEGConfig ffmpegCfg,
-			StreamConfig streamCfg)
+			Channel streamCfg)
 		{
 			return (o, s) =>
             {
@@ -119,7 +119,7 @@ namespace FFMPEGStreamingTools
         
 		private int GetLastProducedIndex(
 			FFMPEGConfig ffmpegCfg,
-			StreamConfig streamCfg)
+			Channel streamCfg)
 		{
 			var chunksRoot = Path.Combine(
 				ffmpegCfg.ChunkStorageDir,

@@ -1,10 +1,13 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Text;
+using System.Threading.Tasks;
 using FFMPEGStreamingTools;
 using FFMPEGStreamingTools.M3u8Generators;
 using FFMPEGStreamingTools.Utils;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -33,21 +36,24 @@ namespace VideoStreamer
 				Task.Run(
 					() => procManager.StartChunking(ffmpegConfig, streamCfg));
 			}
-
-			StreamerSessionCleaner.cleanupIntervalSeconds =
-		        Cfg.GetSection("StreamingSessionsConfig:CleanupIntervalSeconds")
-                   .Get<double>();
         }
         
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc();
-   
-			services.AddTransient<IM3U8Generator, M3U8GeneratorDefault>();
-
+            
 			var connectionStr = Cfg["DBConnectionStr"];
 			services.AddDbContext<StreamerContext>(
-				o => o.UseSqlite(connectionStr));         
+				o => o.UseSqlite(connectionStr));
+
+			services.AddDistributedRedisCache(o =>
+			{
+				o.Configuration = "localhost";
+				o.InstanceName = "VideoStreamings";
+			});         
+
+            // Custom stuff
+			services.AddTransient<IM3U8Generator, M3U8GeneratorDefault>();
         }
   
         public void Configure(
@@ -60,7 +66,7 @@ namespace VideoStreamer
             }
 
             app.UseMvc();
-            app.UseStaticFiles();
+            app.UseStaticFiles();         
         }
     }
 }

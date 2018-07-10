@@ -11,6 +11,7 @@ using FFMPEGStreamingTools.StreamingSettings;
 using FFMPEGStreamingTools.Utils;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using VideoStreamer.DB;
@@ -22,29 +23,31 @@ namespace VideoStreamer.Controllers
 	[Route("api")]
 	public class StreamerController : Controller
 	{
+		private const int RedisConnectionError = 503;
+
 		private readonly FFMPEGConfig _ffmpegCfg;
 		private readonly List<StreamConfig> _streamsCfg;
 		private readonly IM3U8Generator _m3u8Generator;
 		private readonly StreamerContext _dbContext;
+		private readonly IDistributedCache _cache;
 		private readonly StreamerSessionCfg _sessionCfg;
 
 		public StreamerController(
 			IServiceProvider serviceProvider,
 			IConfiguration cfg,
 			IM3U8Generator m3u8Generator,
-			StreamerContext dbContext)
+			StreamerContext dbContext,
+			IDistributedCache cache)
 		{
 			FFMPEGConfigLoader.Load(cfg, out _ffmpegCfg, out _streamsCfg);
 			_m3u8Generator = m3u8Generator;
 			_dbContext = dbContext;
+			_cache = cache;
 
 			_sessionCfg = cfg.GetSection("StreamingSessionsConfig")
 			                 .Get<StreamerSessionCfg>();
 			_sessionCfg.CheckForEnvironmentalues();
 			var vars = Environment.GetEnvironmentVariables();
-
-		  	StreamerSessionCleaner.TryCleanupExpiredSession(serviceProvider)
-			                      .Wait();
 		}
         
 		[Route("Stream/{channel}/index.m3u8")]
@@ -56,7 +59,7 @@ namespace VideoStreamer.Controllers
 			bool displayContent = false)
 		{
 			return await Task.Run(
-				() => Stream(
+				() => StreamInternalAsync(
 					channel,
 					listSize,
 					timeStr,
@@ -65,7 +68,7 @@ namespace VideoStreamer.Controllers
 			);
 		}
 
-		private IActionResult Stream(
+		private async Task<IActionResult> StreamInternalAsync(
 			string channel,
 			int listSize = 5,
 			string timeStr = null,
@@ -95,16 +98,24 @@ namespace VideoStreamer.Controllers
 			try
 			{
 				var session = InitializeSession(
-					channel, requiredTime, listSize, displayContent);
-				
-				_dbContext.StreamingSessions.Add(session);
-				_dbContext.SaveChanges();
+					channel,
+					requiredTime,
+					listSize,
+					displayContent);
 
-				return RedirectToAction(
-					"TokenizedStreamAsync",
-					new { token = session.ID }
-				);
+				var token = GenerateToken(channel);
+				
+				await _cache.SetObjAsync(
+					token,
+					session,
+					GetSessionExpiration());
+
+				return RedirectToAction("TokenizedStreamAsync", new { token });
 			}
+			catch (StackExchange.Redis.RedisConnectionException)
+            {
+                return StatusCode(RedisConnectionError);
+            }
 			catch (Exception e)
 			{
 				return new JsonResult(e.Message);
@@ -130,17 +141,11 @@ namespace VideoStreamer.Controllers
             var lastFileTime =
                 TimeTools.SecondsToDateTime(firstFile.timeSeconds)
                          .Add(DateTimeOffset.Now.Offset);
-                         
-            var expTime =
-                DateTime.Now.AddSeconds(
-					_sessionCfg.ExpirationTimeSeconds);
 
 			return new StreamingSession
             {
-				ID = GenerateToken(channel),
                 Channel = channel,
                 HlsListSize = listSize,
-                ExpireTime = expTime,
                 IP = HttpContext.Connection.RemoteIpAddress.ToString(),
                 LastFileIndex = firstFile.index - 1,
                 LastFileTimeSpan = lastFileTime,
@@ -154,15 +159,16 @@ namespace VideoStreamer.Controllers
 			string token = null)
 		{
 			return await Task.Run(
-				() => TokenizedStream(channel, token));
+				() => TokenizedStreamInternalAsync(channel, token));
 		}
 
-		private IActionResult TokenizedStream(
+		private async Task<IActionResult> TokenizedStreamInternalAsync(
 			string channel,
 			string token = null)
 		{
-			var session = BasicTokenValidations(
-				token, channel, out var invalidRequestActionResult);
+			var tuple = await BasicTokenValidationsAsync(token, channel);
+            var session = tuple.Item1;
+            var invalidRequestActionResult = tuple.Item2;
 
 			if (session == null)
 				return invalidRequestActionResult;
@@ -193,12 +199,17 @@ namespace VideoStreamer.Controllers
 					TimeTools.SecondsToDateTime(firstFile.timeSeconds)
 							 .Add(DateTimeOffset.Now.Offset);
 
-				session.ExpireTime =
-		            DateTime.Now
-					       .AddSeconds(_sessionCfg.ExpirationTimeSeconds);
-
-				_dbContext.Update(session);
-				_dbContext.SaveChanges();
+				try
+				{
+					await _cache.SetObjAsync(
+						token,
+						session,
+						GetSessionExpiration());
+				}
+				catch (StackExchange.Redis.RedisConnectionException)
+				{
+					return StatusCode(RedisConnectionError);
+				}
 
 				var result = playlist.Bake($"token={token}");
 				if (session.DisplayContent)
@@ -213,7 +224,7 @@ namespace VideoStreamer.Controllers
 		}
 
 		[Route("{mode}/{channel}/{year}/{month}/{day}/{hour}/{minute}/{fileName}")]
-		public IActionResult GetChunkFile(
+		public async Task<IActionResult> GetChunkFileAsync(
 			string mode,
 			string channel,
 			string year,
@@ -224,8 +235,9 @@ namespace VideoStreamer.Controllers
 			string fileName,
 			string token = null)
 		{
-			var session = BasicTokenValidations(
-                token, channel, out var invalidRequestActionResult);
+			var tuple = await BasicTokenValidationsAsync(token, channel);
+			var session = tuple.Item1;
+			var invalidRequestActionResult = tuple.Item2;
 
             if (session == null)
                 return invalidRequestActionResult;         
@@ -266,26 +278,29 @@ namespace VideoStreamer.Controllers
             return result;
         }
 
-		private StreamingSession BasicTokenValidations(
+		private async
+		Task<Tuple<StreamingSession, IActionResult>> BasicTokenValidationsAsync(
 			string token,
-			string channel,
-			out IActionResult actionResult)
-		{
+			string channel)
+		{         
 			while (true)
 			{
 				if (token == null)
 					break;
 
-				var session = _dbContext.StreamingSessions.Find(token);
+				StreamingSession session;            
+				try
+				{
+					session = await _cache.GetAsync<StreamingSession>(token);
+				}
+				catch (StackExchange.Redis.RedisConnectionException)
+                {
+					return new Tuple<StreamingSession, IActionResult>(
+						null, StatusCode(RedisConnectionError));
+                }
+
 				if (session == null)
 					break;
-
-                if (DateTime.Now > session.ExpireTime)
-                {
-                    _dbContext.StreamingSessions.Remove(session);
-                    _dbContext.SaveChanges();
-					break;
-                }
 
 				if (channel != session.Channel)
 					break;
@@ -293,16 +308,16 @@ namespace VideoStreamer.Controllers
                 if (session.IP !=
 				    HttpContext.Connection.RemoteIpAddress.ToString())
 				{
-					actionResult = Unauthorized();
-					return null;
+					return new Tuple<StreamingSession, IActionResult>(
+						null, Unauthorized());
 				}
 
-				actionResult = null;
-				return session;
+				return new Tuple<StreamingSession, IActionResult>(
+					session, null);
 			}
 
-			actionResult = NotFound();
-			return null;
+			return new Tuple<StreamingSession, IActionResult>(
+				null, NotFound());
 		}
         
 		private string GenerateToken(string channel)
@@ -311,12 +326,21 @@ namespace VideoStreamer.Controllers
 				channel +
 				(HttpContext.Connection.RemoteIpAddress) +
 				(DateTime.Now) +
+				(HttpContext.Request.Headers["User-Agent"]) +
 				(_sessionCfg.TokenSALT);
 
 			return SHA256Encrypt(str);
 		}
 
-		public static string SHA256Encrypt(string phrase)
+		private DistributedCacheEntryOptions GetSessionExpiration()
+		{
+			return new DistributedCacheEntryOptions()
+				.SetAbsoluteExpiration(
+					TimeSpan.FromSeconds(
+						_sessionCfg.ExpirationTimeSeconds));
+		}
+
+		private static string SHA256Encrypt(string phrase)
         {
             var sha256hasher = new SHA256Managed();
 			var hashedDataBytes = sha256hasher.ComputeHash(

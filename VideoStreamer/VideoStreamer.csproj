@@ -20,14 +20,22 @@
     <Folder Include="Models\Configs\" />
   </ItemGroup>
 
+  <Target Name="ChangeAliasesOfStrongNameAssemblies" BeforeTargets="FindReferenceAssembliesForReferences;ResolveReferences">
+    <ItemGroup>
+      <ReferencePath Condition="'%(FileName)' == 'StackExchange.Redis.StrongName'">
+        <Aliases>signed</Aliases>
+      </ReferencePath>
+    </ItemGroup>
+  </Target>
+
   <ItemGroup>
     <PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Session" Version="2.1.1" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="2.1.1" />
     <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
     <PackageReference Include="Microsoft.AspNetCore.All" Version="2.1.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="2.1.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="2.1.1" />
+    <PackageReference Include="StackExchange.Redis" Version="1.2.6" />
   </ItemGroup>
 
   <ItemGroup>
@@ -42,6 +50,7 @@
     <Compile Remove="Migrations\20180706114901_InitialCreate.cs" />
     <Compile Remove="Controllers\LogFileController.cs" />
     <Compile Remove="Controllers\SessionBrokerController.cs" />
+    <Compile Remove="Utils\StreamerSessionCleaner.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Microsoft.Extensions.PlatformAbstractions">
@@ -60,7 +69,7 @@
       <HintPath>..\..\..\..\..\usr\local\share\dotnet\sdk\NuGetFallbackFolder\newtonsoft.json.bson\1.0.1\lib\netstandard1.3\Newtonsoft.Json.Bson.dll</HintPath>
     </Reference>
     <Reference Include="StackExchange.Redis.StrongName">
-      <HintPath>..\..\..\..\..\usr\local\share\dotnet\sdk\NuGetFallbackFolder\stackexchange.redis.strongname\1.2.4\lib\netstandard1.5\StackExchange.Redis.StrongName.dll</HintPath>
+      <HintPath>..\..\..\..\..\usr\local\share\dotnet\sdk\NuGetFallbackFolder\stackexchange.redis.strongname\1.2.6\lib\netstandard1.5\StackExchange.Redis.StrongName.dll</HintPath>
     </Reference>
     <Reference Include="System.Interactive.Async">
       <HintPath>..\..\..\..\..\usr\local\share\dotnet\sdk\NuGetFallbackFolder\system.interactive.async\3.1.1\lib\netstandard1.3\System.Interactive.Async.dll</HintPath>

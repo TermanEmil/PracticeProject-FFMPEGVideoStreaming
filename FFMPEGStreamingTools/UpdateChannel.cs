@@ -12,7 +12,6 @@ namespace FFMPEGStreamingTools
         public static void AddChannel()
         {
             string allProcessesInfo = "";
-            string newChannelfile = "";
 
             FFMPEGConfigLoader.Load(
                 out var ffmpegConfig,
@@ -21,17 +20,13 @@ namespace FFMPEGStreamingTools
 
             foreach (var x in StreamingProcManager.instance.processes)
             {
-                allProcessesInfo += x.StartInfo.Arguments;
+                allProcessesInfo += x.Value.StartInfo.Arguments;
             }
 
-            foreach (var x in streamsConfig)
-            {
-                newChannelfile += x.Name;
-            }
 
             foreach (var streamCfg in streamsConfig)
             {
-                if (!allProcessesInfo.Contains(streamCfg.Name))
+                if (!StreamingProcManager.instance.processes.ContainsKey(streamCfg.Name))
                 {
                     Task.Run(() => StreamingProcManager.instance.StartChunking(ffmpegConfig, streamCfg));
                 }

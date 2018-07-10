@@ -7,6 +7,6 @@ namespace VideoStreamer.Models.LivePlayerViewModels
 {
     public class ProcessMonitorView
     {
-        public List<Process> _StreamingProcesses { get; set; }
+        public Dictionary<String, Process> _StreamingProcesses { get; set; }
     }
 }

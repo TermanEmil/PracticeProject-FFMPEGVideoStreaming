@@ -51,7 +51,6 @@ namespace VideoStreamer.Controllers
 			_sessionCfg.CheckForEnvironmentalues();
 		}
         
-        // test comment
 		[Route("Stream/{channel}/index.m3u8")]
 		public async Task<IActionResult> StreamAsync(
 			string channel,

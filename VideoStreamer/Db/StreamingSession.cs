@@ -8,7 +8,7 @@ namespace VideoStreamer.DB
 		public string Channel { get; set; }
 		public int HlsListSize { get; set; }
 		public int LastFileIndex { get; set; }
-		public string IP { get; set; }
+		public string ConnectionDetails { get; set; }
 		public DateTime LastFileTimeSpan { get; set; }
 
 		// Determines if the content will be downloadable.

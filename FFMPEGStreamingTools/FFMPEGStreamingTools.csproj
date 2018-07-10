@@ -152,5 +152,6 @@
     <Folder Include="StreamingSettings\" />
     <Folder Include="Utils\" />
     <Folder Include="M3u8Generators\" />
+    <Folder Include="TokenBrokers\" />
   </ItemGroup>
 </Project>

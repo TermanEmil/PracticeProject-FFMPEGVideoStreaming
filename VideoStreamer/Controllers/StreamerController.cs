@@ -8,11 +8,13 @@ using System.Threading.Tasks;
 using FFMPEGStreamingTools;
 using FFMPEGStreamingTools.M3u8Generators;
 using FFMPEGStreamingTools.StreamingSettings;
+using FFMPEGStreamingTools.TokenBrokers;
 using FFMPEGStreamingTools.Utils;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Net.Http.Headers;
 using Newtonsoft.Json;
 using VideoStreamer.DB;
 using VideoStreamer.Models.Configs;
@@ -28,6 +30,7 @@ namespace VideoStreamer.Controllers
 		private readonly IM3U8Generator _m3u8Generator;
 		private readonly StreamerContext _dbContext;
 		private readonly IDistributedCache _cache;
+		private readonly ITokenBroker _tokenBroker;
 		private readonly StreamerSessionCfg _sessionCfg;
 
 		public StreamerController(
@@ -35,17 +38,18 @@ namespace VideoStreamer.Controllers
 			IConfiguration cfg,
 			IM3U8Generator m3u8Generator,
 			StreamerContext dbContext,
-			IDistributedCache cache)
+			IDistributedCache cache,
+			ITokenBroker tokenBroker)
 		{
 			FFMPEGConfigLoader.Load(cfg, out _ffmpegCfg, out _streamsCfg);
 			_m3u8Generator = m3u8Generator;
 			_dbContext = dbContext;
 			_cache = cache;
+			_tokenBroker = tokenBroker;
 
 			_sessionCfg = cfg.GetSection("StreamingSessionsConfig")
 			                 .Get<StreamerSessionCfg>();
 			_sessionCfg.CheckForEnvironmentalues();
-			var vars = Environment.GetEnvironmentVariables();
 		}
         
 		[Route("Stream/{channel}/index.m3u8")]
@@ -105,7 +109,10 @@ namespace VideoStreamer.Controllers
             catch (NoSuchChannelException e)
             { return Content(e.Message); }
 
-			var token = GenerateToken(channel);         
+			var token = _tokenBroker.GenerateToken(
+				channel + GetConnectionDetails(),
+				_sessionCfg.TokenSALT);
+			
 			try
 			{
 				await _cache.SetObjAsync(
@@ -143,7 +150,7 @@ namespace VideoStreamer.Controllers
             {
                 Channel = channel,
                 HlsListSize = listSize,
-                IP = HttpContext.Connection.RemoteIpAddress.ToString(),
+				ConnectionDetails = GetConnectionDetails(),
                 LastFileIndex = firstFile.index - 1,
                 LastFileTimeSpan = lastFileTime,
                 DisplayContent = displayContent
@@ -300,8 +307,7 @@ namespace VideoStreamer.Controllers
 				if (channel != session.Channel)
 					break;
     
-                if (session.IP !=
-				    HttpContext.Connection.RemoteIpAddress.ToString())
+				if (session.ConnectionDetails != GetConnectionDetails())
 				{
 					return new Tuple<StreamingSession, IActionResult>(
 						null, Unauthorized());
@@ -315,18 +321,14 @@ namespace VideoStreamer.Controllers
 				null, NotFound());
 		}
         
-		private string GenerateToken(string channel)
+		private string GetConnectionDetails()
 		{
-			var str =
-				channel +
-				(HttpContext.Connection.RemoteIpAddress) +
-				(DateTime.Now) +
-				(HttpContext.Request.Headers["User-Agent"]) +
-				(_sessionCfg.TokenSALT);
+			var userAgent = HttpContext.Request.Headers[HeaderNames.UserAgent];
+            var ip = HttpContext.Connection.RemoteIpAddress;
 
-			return SHA256Encrypt(str);
+			return $"userAgent: '{userAgent}'; ip: {ip}";
 		}
-
+        
 		private DistributedCacheEntryOptions GetSessionExpiration()
 		{
 			return new DistributedCacheEntryOptions()
@@ -334,17 +336,6 @@ namespace VideoStreamer.Controllers
 					TimeSpan.FromSeconds(
 						_sessionCfg.ExpirationTimeSeconds));
 		}
-
-		private static string SHA256Encrypt(string phrase)
-        {
-            var sha256hasher = new SHA256Managed();
-			var hashedDataBytes = sha256hasher.ComputeHash(
-				Encoding.UTF8.GetBytes(phrase));
-            
-			return Convert.ToBase64String(hashedDataBytes)
-				          .Replace("+", "-")
-				          .Replace("/", "_");
-        }
 
 		private IActionResult RedisConnectionException()
 		{

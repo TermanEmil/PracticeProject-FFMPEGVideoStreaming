@@ -15,7 +15,7 @@ namespace FFMPEGStreamingTools.M3u8Generators
         // It helps preventing some glitches when the process dies.
         private const int safeHlsLstDelta = 1;
 
-        // I don't really know why I've set it myself.
+        // I don't really know why I've set it.
 		private const double maxConnectionLatencySeconds = 5 * 60;
 
 		public M3U8Playlist GenerateM3U8(

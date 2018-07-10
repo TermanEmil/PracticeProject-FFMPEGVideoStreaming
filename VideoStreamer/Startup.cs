@@ -3,6 +3,7 @@ using System.Text;
 using System.Threading.Tasks;
 using FFMPEGStreamingTools;
 using FFMPEGStreamingTools.M3u8Generators;
+using FFMPEGStreamingTools.TokenBrokers;
 using FFMPEGStreamingTools.Utils;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -54,6 +55,7 @@ namespace VideoStreamer
 
             // Custom stuff
 			services.AddTransient<IM3U8Generator, M3U8GeneratorDefault>();
+			services.AddTransient<ITokenBroker, SHA256TokenBroker>();
         }
   
         public void Configure(

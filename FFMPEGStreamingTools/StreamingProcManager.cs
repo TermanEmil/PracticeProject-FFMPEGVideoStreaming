@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -17,10 +18,11 @@ namespace FFMPEGStreamingTools
 		public List<Process> processes = new List<Process>();
 		public bool LogToStdout { get; set; } = true;
 
-        // Sets of chunk indexes with file discontinuities.
+		// Sets of chunk indexes with file discontinuities.
 		// Used in M3U8 generator.
-		public Dictionary<string, HashSet<int>> chunkDiscontinuities =
-			new Dictionary<string, HashSet<int>>();
+		public ConcurrentDictionary<string, ConcurrentBag<int>>
+		    chunkDiscontinuities =
+    			new ConcurrentDictionary<string, ConcurrentBag<int>>();
 
 		public StreamingProcManager()
 		{
@@ -33,7 +35,10 @@ namespace FFMPEGStreamingTools
 		    int startNumber = 0)
 		{
 			if (!chunkDiscontinuities.ContainsKey(streamCfg.Name))
-			    chunkDiscontinuities.Add(streamCfg.Name, new HashSet<int>());
+			{
+				chunkDiscontinuities.TryAdd(
+					streamCfg.Name, new ConcurrentBag<int>());
+			}
             
 			var procInfo = new ProcessStartInfo();
 			procInfo.FileName = ffmpegCfg.BinaryPath;
@@ -80,10 +85,9 @@ namespace FFMPEGStreamingTools
 
 			proc.Exited += GenerateOnExitHandler(ffmpegCfg, streamCfg);
    
-			processes.Add(proc);
-
 			proc.Start();         
-			proc.WaitForExit();         
+			processes.Add(proc);
+			proc.WaitForExit();
 		}
 
 		private EventHandler GenerateOnExitHandler(
@@ -94,6 +98,9 @@ namespace FFMPEGStreamingTools
             {
                 processes.Remove(o as Process);
                 var lastID = GetLastProducedIndex(ffmpegCfg, streamCfg);
+
+				if (lastID == -1)
+					return;
 
                 var log = string.Format(
                     "[Restarting]: lastID = {0} | {1}",
@@ -117,6 +124,9 @@ namespace FFMPEGStreamingTools
 			var chunksRoot = Path.Combine(
 				ffmpegCfg.ChunkStorageDir,
 				streamCfg.Name);
+
+			if (!Directory.Exists(chunksRoot))
+				return -1;
 
 			var files = Directory.GetFiles(
 				chunksRoot,

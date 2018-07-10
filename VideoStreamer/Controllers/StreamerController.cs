@@ -23,7 +23,7 @@ namespace VideoStreamer.Controllers
 	[Route("api")]
 	public class StreamerController : Controller
 	{
-		private const int RedisConnectionError = 503;
+		private const int redisConnectionError = 503;
 
 		private readonly FFMPEGConfig _ffmpegCfg;
 		private readonly List<StreamConfig> _streamsCfg;
@@ -87,39 +87,38 @@ namespace VideoStreamer.Controllers
 						JsonConvert.DeserializeObject<DateTime>(timeStr);
 				}
 				catch (JsonReaderException)
-				{
-					return View("InvalidTimeFormat");
-				}
+				{ return View("InvalidTimeFormat"); }
 			}
 
 			if (timeShiftMills != 0)
 				requiredTime = requiredTime.AddMilliseconds(-timeShiftMills);
 
+			StreamingSession session;         
 			try
 			{
-				var session = InitializeSession(
+				session = InitializeSession(
 					channel,
 					requiredTime,
 					listSize,
 					displayContent);
+			}
+            catch (NoAvailableFilesException e)
+            { return Content(e.Message); }
+            catch (NoSuchChannelException e)
+            { return Content(e.Message); }
 
-				var token = GenerateToken(channel);
-				
+			var token = GenerateToken(channel);         
+			try
+			{
 				await _cache.SetObjAsync(
 					token,
 					session,
 					GetSessionExpiration());
+			}
+			catch (Exception)
+			{ return StatusCode(redisConnectionError); }
 
-				return RedirectToAction("TokenizedStreamAsync", new { token });
-			}
-			catch (StackExchange.Redis.RedisConnectionException)
-            {
-                return StatusCode(RedisConnectionError);
-            }
-			catch (Exception e)
-			{
-				return new JsonResult(e.Message);
-			}
+			return RedirectToAction("TokenizedStreamAsync", new { token });
 		}
 
 		private StreamingSession InitializeSession(
@@ -206,10 +205,8 @@ namespace VideoStreamer.Controllers
 						session,
 						GetSessionExpiration());
 				}
-				catch (StackExchange.Redis.RedisConnectionException)
-				{
-					return StatusCode(RedisConnectionError);
-				}
+				catch (Exception)
+				{ return StatusCode(redisConnectionError); }
 
 				var result = playlist.Bake($"token={token}");
 				if (session.DisplayContent)
@@ -217,10 +214,10 @@ namespace VideoStreamer.Controllers
 				else
 					return GenerateDownloadableContent(result);
 			}
-			catch (Exception e)
-			{
-				return new JsonResult(e.Message);
-			}
+			catch (NoAvailableFilesException e)
+			{ return new JsonResult(e.Message); }
+			catch (NoSuchChannelException e)
+			{ return new JsonResult(e.Message); }
 		}
 
 		[Route("{mode}/{channel}/{year}/{month}/{day}/{hour}/{minute}/{fileName}")]
@@ -293,10 +290,10 @@ namespace VideoStreamer.Controllers
 				{
 					session = await _cache.GetAsync<StreamingSession>(token);
 				}
-				catch (StackExchange.Redis.RedisConnectionException)
+				catch (Exception)
                 {
 					return new Tuple<StreamingSession, IActionResult>(
-						null, StatusCode(RedisConnectionError));
+						null, StatusCode(redisConnectionError));
                 }
 
 				if (session == null)

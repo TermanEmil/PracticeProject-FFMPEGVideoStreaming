@@ -28,5 +28,10 @@
     "Link": "http://radiolive.trm.md:8000/PGM1_128kb",
     "Name": "RadioMD3",
     "ChunkTime": 2
+  },
+  {
+    "Link": "http://radiolive.trm.md:8000/PGM1_128kb",
+    "Name": "RadioMD37",
+    "ChunkTime": 2
   }
 ]

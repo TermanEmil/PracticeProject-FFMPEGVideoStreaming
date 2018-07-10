@@ -17,10 +17,16 @@ namespace FFMPEGStreamingTools.M3u8Generators
 
         // I don't really know why I've set it.
 		private const double maxConnectionLatencySeconds = 5 * 60;
+		private readonly StreamingProcManager _procManager;
+
+		public M3U8GeneratorDefault(StreamingProcManager procManager)
+		{
+			_procManager = procManager;
+		}
 
 		public M3U8Playlist GenerateM3U8(
 			FFMPEGConfig ffmpegCfg,
-			IEnumerable<Channel> streamsCfgs,
+			IEnumerable<StreamSource> streamsCfgs,
 			string channel,
 			DateTime time,
 			int hlsLstSize)
@@ -71,7 +77,7 @@ namespace FFMPEGStreamingTools.M3u8Generators
 
 		public M3U8Playlist GenerateNextM3U8(
 			FFMPEGConfig ffmpegCfg,
-			IEnumerable<Channel> streamsCfgs,
+			IEnumerable<StreamSource> streamsCfgs,
 			string channel,
 			int hlsLstSize,
 			int lastFileIndex,
@@ -119,9 +125,9 @@ namespace FFMPEGStreamingTools.M3u8Generators
 
 		private void BasicInitializations(
 			FFMPEGConfig ffmpegCfg,
-            IEnumerable<Channel> streamsCfgs,
+            IEnumerable<StreamSource> streamsCfgs,
             string channel,
-			out Channel streamCfg,
+			out StreamSource streamCfg,
 			out string channelRoot)
 		{
 			streamCfg = streamsCfgs.FirstOrDefault(x => x.Name == channel);
@@ -304,8 +310,7 @@ namespace FFMPEGStreamingTools.M3u8Generators
 				files = chunks.Select(file => new M3U8File
 				{
 					extinf = chunkTime,
-					isDiscont = StreamingProcManager
-						.instance
+					isDiscont = _procManager
 						.chunkDiscontinuities[channel]
 						.Contains(file.index),
 					fileIndex = file.index,

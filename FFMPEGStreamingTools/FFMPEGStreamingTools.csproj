@@ -8,6 +8,7 @@
     <Compile Remove="Class1.cs" />
     <Compile Remove="M3u8Generator\IM3u8Generator.cs" />
     <Compile Remove="M3u8Generators\PlaylistGenerator.cs" />
+    <Compile Remove="Utils\FFMPEGConfigLoader.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Microsoft.Extensions.Configuration.Abstractions">

@@ -13,7 +13,16 @@ namespace VideoStreamer.Models.Configs
 		public double ExpirationTimeSeconds { get; set; }
         public string TokenSALT { get; set; }
 
-		public void CheckForEnvironmentalues()
+		public static StreamerSessionCfg Load(IConfiguration cfg)
+		{
+			var result = cfg.GetSection("StreamingSessionsConfig")
+			                .Get<StreamerSessionCfg>();
+			result.CheckForEnvironmentalues();
+
+			return result;
+		}
+
+		private void CheckForEnvironmentalues()
 		{
 			if (TokenSALT[0] == '$')
 			{

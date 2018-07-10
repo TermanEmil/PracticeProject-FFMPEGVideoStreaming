@@ -10,13 +10,14 @@ namespace VideoStreamer.Controllers
 	[Route("api/[controller]/{channel}")]
     public class LivePlayerController : Controller
     {
-		private readonly FFMPEGConfig _ffmpegCfg;
-		private readonly List<Channel> _streamsCfg;
+		private readonly List<StreamSource> _streamsCfg;
 
-		public LivePlayerController(IConfiguration cfg)
+		public LivePlayerController(
+			StreamSourceCfgLoader streamSourceCfgLoader)
         {
-			FFMPEGConfigLoader.Load(out _ffmpegCfg, out _streamsCfg);
+			_streamsCfg = streamSourceCfgLoader.LoadStreamSources();
         }
+
         public IActionResult Index(string channel)
         {
             var data = new LivePlayerView();

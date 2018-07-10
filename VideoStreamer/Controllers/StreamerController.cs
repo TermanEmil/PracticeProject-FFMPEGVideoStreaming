@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.Net.Http.Headers;
 using Newtonsoft.Json;
 using VideoStreamer.DB;
@@ -25,7 +26,7 @@ namespace VideoStreamer.Controllers
 	public class StreamerController : Controller
 	{      
 		private readonly FFMPEGConfig _ffmpegCfg;
-		private readonly List<Channel> _streamsCfg;
+		private readonly List<StreamSource> _streamsCfg;
 		private readonly IM3U8Generator _m3u8Generator;
 		private readonly StreamerContext _dbContext;
 		private readonly IDistributedCache _cache;
@@ -38,17 +39,18 @@ namespace VideoStreamer.Controllers
 			IM3U8Generator m3u8Generator,
 			StreamerContext dbContext,
 			IDistributedCache cache,
-			ITokenBroker tokenBroker)
+			ITokenBroker tokenBroker,
+			ILoggerFactory loggerFactory,
+			StreamSourceCfgLoader streamSourceCfgLoader)
 		{
-			FFMPEGConfigLoader.Load(out _ffmpegCfg, out _streamsCfg);
 			_m3u8Generator = m3u8Generator;
 			_dbContext = dbContext;
 			_cache = cache;
 			_tokenBroker = tokenBroker;
 
-			_sessionCfg = cfg.GetSection("StreamingSessionsConfig")
-			                 .Get<StreamerSessionCfg>();
-			_sessionCfg.CheckForEnvironmentalues();
+			_ffmpegCfg = FFMPEGConfig.Load(cfg);
+			_sessionCfg = StreamerSessionCfg.Load(cfg);
+			_streamsCfg = streamSourceCfgLoader.LoadStreamSources();         
 		}
         
 		[Route("Stream/{channel}/index.m3u8")]

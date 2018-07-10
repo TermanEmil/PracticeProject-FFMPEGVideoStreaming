@@ -1,7 +1,7 @@
 ﻿using System;
 namespace FFMPEGStreamingTools.StreamingSettings
 {
-    public class Channel
+    public class StreamSource
     {
 		public string Link { get; set; }
 		public string Name { get; set; }

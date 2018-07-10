@@ -22,9 +22,7 @@ namespace VideoStreamer.Controllers
 {
 	[Route("api")]
 	public class StreamerController : Controller
-	{
-		private const int redisConnectionError = 503;
-
+	{      
 		private readonly FFMPEGConfig _ffmpegCfg;
 		private readonly List<StreamConfig> _streamsCfg;
 		private readonly IM3U8Generator _m3u8Generator;
@@ -116,7 +114,7 @@ namespace VideoStreamer.Controllers
 					GetSessionExpiration());
 			}
 			catch (Exception)
-			{ return StatusCode(redisConnectionError); }
+			{ return RedisConnectionException(); }
 
 			return RedirectToAction("TokenizedStreamAsync", new { token });
 		}
@@ -206,7 +204,7 @@ namespace VideoStreamer.Controllers
 						GetSessionExpiration());
 				}
 				catch (Exception)
-				{ return StatusCode(redisConnectionError); }
+				{ return RedisConnectionException(); }
 
 				var result = playlist.Bake($"token={token}");
 				if (session.DisplayContent)
@@ -293,7 +291,7 @@ namespace VideoStreamer.Controllers
 				catch (Exception)
                 {
 					return new Tuple<StreamingSession, IActionResult>(
-						null, StatusCode(redisConnectionError));
+						null, RedisConnectionException());
                 }
 
 				if (session == null)
@@ -347,6 +345,11 @@ namespace VideoStreamer.Controllers
 				          .Replace("+", "-")
 				          .Replace("/", "_");
         }
+
+		private IActionResult RedisConnectionException()
+		{
+			return Content("The database server is not responding.");
+		}
         #endregion
 	}
 }

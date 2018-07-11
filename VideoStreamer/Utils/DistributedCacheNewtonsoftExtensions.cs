@@ -2,7 +2,7 @@
 using System.Threading.Tasks;
 using Microsoft.Extensions.Caching.Distributed;
 using Newtonsoft.Json;
-using VideoStreamer.DB;
+using VideoStreamer.Db;
 
 namespace VideoStreamer.Utils
 {

@@ -16,7 +16,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Net.Http.Headers;
 using Newtonsoft.Json;
-using VideoStreamer.DB;
+using VideoStreamer.Db;
 using VideoStreamer.Models.Configs;
 using VideoStreamer.Utils;
 
@@ -105,9 +105,7 @@ namespace VideoStreamer.Controllers
 					listSize,
 					displayContent);
 			}
-            catch (NoAvailableFilesException e)
-            { return Content(e.Message); }
-            catch (NoSuchChannelException e)
+			catch (M3U8GeneratorException e)
             { return Content(e.Message); }
 
 			var token = _tokenBroker.GenerateToken(
@@ -134,8 +132,6 @@ namespace VideoStreamer.Controllers
 			bool displayContent)
 		{
 			var playlist = _m3u8Generator.GenerateM3U8(
-                _ffmpegCfg,
-                _streamsCfg,
                 channel,
                 requiredTime,
                 listSize);
@@ -178,52 +174,50 @@ namespace VideoStreamer.Controllers
 			if (session == null)
 				return invalidRequestActionResult;
 
+			M3U8Playlist playlist;
+
 			try
 			{
-				var playlist = _m3u8Generator.GenerateNextM3U8(
-					_ffmpegCfg,
-					_streamsCfg,
+				playlist = _m3u8Generator.GenerateNextM3U8(
 					channel,
 					session.HlsListSize,
 					session.LastFileIndex,
 					session.LastFileTimeSpan);
-
-				Console.WriteLine(
-					"[StreamCtrl]:> m3u8: {0} TOKEN: {1}",
-					string.Join(
-						", ",
-						playlist.files.Select(x => x.fileIndex)),
-					session.LastFileIndex
-				);
-
-				var firstFile =
-					new ChunkFile(playlist.files.First().filePath);
-
-				session.LastFileIndex = firstFile.index;
-				session.LastFileTimeSpan =
-					TimeTools.SecondsToDateTime(firstFile.timeSeconds)
-							 .Add(DateTimeOffset.Now.Offset);
-
-				try
-				{
-					await _cache.SetObjAsync(
-						token,
-						session,
-						GetSessionExpiration());
-				}
-				catch (Exception)
-				{ return RedisConnectionException(); }
-
-				var result = playlist.Bake($"token={token}");
-				if (session.DisplayContent)
-					return Content(result);
-				else
-					return GenerateDownloadableContent(result);
 			}
-			catch (NoAvailableFilesException e)
-			{ return new JsonResult(e.Message); }
-			catch (NoSuchChannelException e)
-			{ return new JsonResult(e.Message); }
+            catch (M3U8GeneratorException e)
+            { return Content(e.Message); }
+
+			Console.WriteLine(
+				"[StreamCtrl]:> m3u8: {0} TOKEN: {1}",
+				string.Join(
+					", ",
+					playlist.files.Select(x => x.fileIndex)),
+				session.LastFileIndex
+			);
+
+			var firstFile =
+				new ChunkFile(playlist.files.First().filePath);
+
+			session.LastFileIndex = firstFile.index;
+			session.LastFileTimeSpan =
+				TimeTools.SecondsToDateTime(firstFile.timeSeconds)
+						 .Add(DateTimeOffset.Now.Offset);
+
+			try
+			{
+				await _cache.SetObjAsync(
+					token,
+					session,
+					GetSessionExpiration());
+			}
+			catch (Exception)
+			{ return RedisConnectionException(); }
+
+			var result = playlist.Bake($"token={token}");
+			if (session.DisplayContent)
+				return Content(result);
+			else
+				return GenerateDownloadableContent(result);
 		}
 
 		[Route("{mode}/{channel}/{year}/{month}/{day}/{hour}/{minute}/{fileName}")]

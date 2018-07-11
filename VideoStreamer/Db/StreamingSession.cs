@@ -1,7 +1,7 @@
 ﻿using System;
 using Microsoft.Extensions.Caching.Distributed;
 
-namespace VideoStreamer.DB
+namespace VideoStreamer.Db
 {
 	public class StreamingSession
 	{

@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using VideoStreamer.DB;
+using VideoStreamer.Db;
 
 namespace VideoStreamer
 {
@@ -38,10 +38,10 @@ namespace VideoStreamer
 
 			// Custom stuff
 			services.AddSingleton<StreamingProcManager>();
-			services.AddSingleton<ChannelUpdateManager>();
-			services.AddTransient<StreamSourceCfgLoader>();         
-			services.AddTransient<IM3U8Generator, M3U8GeneratorDefault>();
-			services.AddTransient<ITokenBroker, SHA256TokenBroker>();
+			services.AddSingleton<StreamsUpdateManager>();
+			services.AddTransient<StreamSourceCfgLoader>();
+			services.AddScoped<IM3U8Generator, M3U8GeneratorDefault>();
+			services.AddScoped<ITokenBroker, SHA256TokenBroker>();
 		}
 
 		public void Configure(
@@ -58,7 +58,7 @@ namespace VideoStreamer
 
 			// Singleton intializations.
 			app.ApplicationServices.GetService<StreamingProcManager>();
-			app.ApplicationServices.GetService<ChannelUpdateManager>()
+			app.ApplicationServices.GetService<StreamsUpdateManager>()
 			   .UpdateChannels();
 		}
 	}

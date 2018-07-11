@@ -10,20 +10,23 @@ namespace VideoStreamer.Controllers
 	[Route("api/[controller]/{channel}")]
     public class LivePlayerController : Controller
     {
-		private readonly List<StreamSource> _streamsCfg;
+		private readonly StreamSourceCfgLoader _streamSourceCfgLoader;
 
 		public LivePlayerController(
 			StreamSourceCfgLoader streamSourceCfgLoader)
         {
-			_streamsCfg = streamSourceCfgLoader.LoadStreamSources();
+            _streamSourceCfgLoader = streamSourceCfgLoader;
         }
 
         public IActionResult Index(string channel)
         {
-            var data = new LivePlayerView();
+			var streamsCfg = _streamSourceCfgLoader.LoadStreamSources();
+			if (streamsCfg == null)
+				return NotFound();
 
-            data.Channel = "";
-            foreach (var x in _streamsCfg)
+			var data = new LivePlayerView { Channel = "" };
+
+            foreach (var x in streamsCfg)
             {
                 if (channel == x.Name)
                 {

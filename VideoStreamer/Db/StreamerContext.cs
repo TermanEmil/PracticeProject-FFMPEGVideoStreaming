@@ -1,7 +1,7 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore;
 
-namespace VideoStreamer.DB
+namespace VideoStreamer.Db
 {
 	public class StreamerContext : DbContext
     {

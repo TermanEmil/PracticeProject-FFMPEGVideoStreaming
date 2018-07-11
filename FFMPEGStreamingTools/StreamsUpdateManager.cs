@@ -5,25 +5,29 @@ using Microsoft.Extensions.Configuration;
 using System.Diagnostics;
 using System.Linq;
 using System.IO;
+using FFMPEGStreamingTools.StreamingSettings;
+using System.Collections.Generic;
 
 namespace FFMPEGStreamingTools
 {
-    public class ChannelUpdateManager
+    public class StreamsUpdateManager
     {
 		private readonly StreamingProcManager _procManager;
 		private readonly StreamSourceCfgLoader _streamSourceCfgLoader;
 
-		public ChannelUpdateManager(
+		public StreamsUpdateManager(
+			IConfiguration cfg,
 			StreamingProcManager procManager,
 			StreamSourceCfgLoader streamSourceCfgLoader)
 		{
 			_procManager = procManager;
 			_streamSourceCfgLoader = streamSourceCfgLoader;
 
+			var ffmpegCfg = FFMPEGConfig.Load(cfg);
 			var watcher = new FileSystemWatcher
             {
-                Filter = "*Channels.json",
-                Path = ".",
+				Filter = "*" + Path.GetFileName(ffmpegCfg.ChannelsCfgPath),
+				Path = Path.GetDirectoryName(ffmpegCfg.ChannelsCfgPath),
                 NotifyFilter =
                            NotifyFilters.LastAccess |
                            NotifyFilters.LastWrite |
@@ -37,7 +41,6 @@ namespace FFMPEGStreamingTools
 
 		private void OnChanged(object source, FileSystemEventArgs e)
         {
-            Console.WriteLine("File: " + e.FullPath + " " + e.ChangeType);
             UpdateChannels();
         }
 
@@ -46,22 +49,37 @@ namespace FFMPEGStreamingTools
 			var streamsConfig = _streamSourceCfgLoader.LoadStreamSources();         
 			if (streamsConfig == null)
 				return;
-                
+
+			var mentionedProcNames = new HashSet<string>();
             foreach (var streamCfg in streamsConfig)
             {
 				var procEntry = 
 					_procManager.processes
 					       .FirstOrDefault(x => x.Name == streamCfg.Name);
-				
-				if (procEntry == null)
+
+				if (procEntry == null ||
+					procEntry.Proc == null ||
+					procEntry.Proc.HasExited)
 				{
-					Task.Run(() => _procManager.StartChunking(streamCfg));
+					_procManager.StartChunkingTask(streamCfg);
 				}
-				else
+				else if (procEntry.Hash != streamCfg.GetHashCode())
 				{
-					procEntry.CloseProcess();
+					procEntry.Restart(
+						() => _procManager.StartChunkingTask(streamCfg));
 				}
+
+				mentionedProcNames.Add(streamCfg.Name);
             }
+
+			var removedProcs =
+				_procManager.processes
+				            .Where(x => !mentionedProcNames.Contains(x.Name));
+			
+			foreach (var procEntry in removedProcs)
+			{
+				procEntry.CloseProcess();
+			}
         }
     }
 }

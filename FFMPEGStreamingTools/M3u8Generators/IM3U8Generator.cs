@@ -7,15 +7,11 @@ namespace FFMPEGStreamingTools.M3u8Generators
 	public interface IM3U8Generator
     {
 		M3U8Playlist GenerateM3U8(
-			FFMPEGConfig ffmpegCfg,
-            IEnumerable<StreamSource> streamsCfgs,
 			string channel,
 			DateTime time,         
 			int hlsLstSize);
 
 		M3U8Playlist GenerateNextM3U8(
-			FFMPEGConfig ffmpegCfg,
-			IEnumerable<StreamSource> streamsCfgs,
 			string channel,
 			int hlsLstSize,
 			int lastFileIndex,

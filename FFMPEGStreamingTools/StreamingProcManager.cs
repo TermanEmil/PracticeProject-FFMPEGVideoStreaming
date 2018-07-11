@@ -20,10 +20,9 @@ namespace FFMPEGStreamingTools
 
 		// Sets of chunk indexes with file discontinuities.
 		// Used in M3U8 generator.
-		public ConcurrentDictionary<string, ConcurrentBag<int>>
-		    chunkDiscontinuities =
-    			new ConcurrentDictionary<string, ConcurrentBag<int>>();
-
+		public
+		ConcurrentDictionary<string, ConcurrentBag<int>> chunkDiscontinuities;
+    	      
 		private readonly FFMPEGConfig _ffmpegCfg;
 		private readonly StreamSourceCfgLoader _streamSourceCfgLoader;
 
@@ -33,45 +32,35 @@ namespace FFMPEGStreamingTools
 		{
 			_ffmpegCfg = FFMPEGConfig.Load(cfg);
 			_streamSourceCfgLoader = streamSourceCfgLoader;
+
+			chunkDiscontinuities =
+				new ConcurrentDictionary<string, ConcurrentBag<int>>();
 		}
 
-		public void StartChunking(
-			StreamSource streamCfg,
-		    int startNumber = 0)
+		public void StartChunkingTask(StreamSource streamCfg)
+		{
+			Task.Run(() => StartChunking(streamCfg));
+		}
+
+		private void StartChunking(StreamSource streamCfg)
 		{
 			if (!chunkDiscontinuities.ContainsKey(streamCfg.Name))
-			{
 				chunkDiscontinuities.TryAdd(
 					streamCfg.Name, new ConcurrentBag<int>());
-			}
-            
-			var procInfo = new ProcessStartInfo();
-			procInfo.FileName = _ffmpegCfg.BinaryPath;
-			procInfo.UseShellExecute = false;
-			streamCfg.Name = streamCfg.Name;
 
-			var root = _ffmpegCfg.ChunkStorageDir + "/" + streamCfg.Name + "/";
-			var segmentFilename = root + $"%Y/%m/%d/%H/%M/%s-%%06d.ts";         
-			var m3u8File = root + "index.m3u8";
-			
-			procInfo.Arguments = string.Join(" ", new[]
+			var nextID = GetLastProducedIndex(streamCfg);
+            if (nextID != 0 &&
+                !chunkDiscontinuities[streamCfg.Name].Contains(nextID))
+            {
+                chunkDiscontinuities[streamCfg.Name].Add(nextID);
+            }
+
+			var procInfo = new ProcessStartInfo()
 			{
-				"-err_detect ignore_err",
-				"-reconnect 1 -reconnect_at_eof 1",
-				"-reconnect_streamed 1 -reconnect_delay_max 300",
-				"-y -re",
-                "-hide_banner",
-			    "-i " + streamCfg.Link,            
-			    "-map 0",
-				"-start_number " + startNumber,
-				"-codec:v copy -codec:a copy -c copy",
-			    "-f hls",
-			    "-hls_time " + streamCfg.ChunkTime,
-			    "-use_localtime 1 -use_localtime_mkdir 1",
-				"-hls_flags second_level_segment_index",
-			    "-hls_segment_filename " + segmentFilename,
-			    m3u8File
-			});
+				FileName = _ffmpegCfg.BinaryPath,
+				UseShellExecute = false,
+				Arguments = GenerateProcArguments(streamCfg, nextID)
+			};
 
 			procInfo.RedirectStandardOutput = !LogToStdout;
 			procInfo.RedirectStandardError = !LogToStdout;
@@ -91,16 +80,43 @@ namespace FFMPEGStreamingTools
 				processes.Add(new ProcEntry
 				{
 					Name = streamCfg.Name,
+					Hash = streamCfg.GetHashCode(),
 					Proc = proc
 				});
 			}
 			else
-			{
 				procEntry.Proc = proc;
-			}
 
 			proc.Start();
 			proc.WaitForExit();
+		}
+
+		private string GenerateProcArguments(
+			StreamSource streamCfg,
+			int startID)
+		{
+			var root = _ffmpegCfg.ChunkStorageDir + "/" + streamCfg.Name + "/";
+            var segmentFilename = root + $"%Y/%m/%d/%H/%M/%s-%%06d.ts";
+            var m3u8File = root + "index.m3u8";
+            
+			return string.Join(" ", new[]
+            {
+                "-err_detect ignore_err",
+                "-reconnect 1 -reconnect_at_eof 1",
+                "-reconnect_streamed 1 -reconnect_delay_max 300",
+                "-y -re",
+                "-hide_banner",
+                "-i " + streamCfg.Link,
+                "-map 0",
+				"-start_number " + startID,
+                "-codec:v copy -codec:a copy -c copy",
+                "-f hls",
+                "-hls_time " + streamCfg.ChunkTime,
+                "-use_localtime 1 -use_localtime_mkdir 1",
+                "-hls_flags second_level_segment_index",
+                "-hls_segment_filename " + segmentFilename,
+                m3u8File
+            });
 		}
 
 		private void OnProcExit(object s, EventArgs e)
@@ -111,9 +127,12 @@ namespace FFMPEGStreamingTools
 			if (procEntry != null)
             {
                 procEntry.Proc = null;
-                if (procEntry.closeRequested)
-                    return;
-            }         
+				if (procEntry.closeRequested)
+				{
+					procEntry.closeRequested = false;
+					return;
+				}
+            }
 
 			var streamsCfgs = _streamSourceCfgLoader.LoadStreamSources();
 			if (streamsCfgs == null)
@@ -131,22 +150,12 @@ namespace FFMPEGStreamingTools
 				return;
 			}
 
-            var lastID = GetLastProducedIndex(streamCfg);         
-            if (lastID == -404)
-                return;
+			var root = Path.Combine(_ffmpegCfg.ChunkStorageDir, streamCfg.Name);
+			if (!Directory.Exists(root))
+				return;
 
-            var log = string.Format(
-                "[Restarting]: lastID = {0} | {1}",
-                lastID,
-                streamCfg.Name);
-
-            Console.WriteLine(log);
-
-            var nextID = lastID + 1;
-            if (!chunkDiscontinuities[streamCfg.Name].Contains(nextID))
-                chunkDiscontinuities[streamCfg.Name].Add(nextID);
-
-            StartChunking(streamCfg, nextID);
+			Console.WriteLine("[Restarting]: {0}", streamCfg.Name);         
+            StartChunking(streamCfg);
 		}
 
 		private int GetLastProducedIndex(StreamSource streamCfg)
@@ -156,7 +165,7 @@ namespace FFMPEGStreamingTools
 				streamCfg.Name);
 
 			if (!Directory.Exists(chunksRoot))
-				return -404;
+				return -1;
 
 			var files = Directory.GetFiles(
 				chunksRoot,
@@ -171,7 +180,7 @@ namespace FFMPEGStreamingTools
                      
 			File.Delete(mostRecent);
 			var mostRecentChunk = new ChunkFile(mostRecent);
-			return mostRecentChunk.index - 1;
+			return mostRecentChunk.index;
 		}
     }
 }

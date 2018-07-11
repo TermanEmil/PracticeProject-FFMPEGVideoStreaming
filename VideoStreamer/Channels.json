@@ -14,6 +14,11 @@
     "Name": "RadioMD",
     "ChunkTime": 2
   },
+  {
+    "Link": "http://radiolive.trm.md:8000/PGM1_128kb",
+    "Name": "RadioMD2",
+    "ChunkTime": 2
+  },
   //{
   //  "Link": "http://89.28.21.86/JurnalTV_HD/tracks-v4a1/mono.m3u8",
   //  "Name": "JurnalTV",

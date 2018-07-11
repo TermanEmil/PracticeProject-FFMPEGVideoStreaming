@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using FFMPEGStreamingTools.StreamingSettings;
 using FFMPEGStreamingTools.Utils;
+using Microsoft.Extensions.Configuration;
 
 namespace FFMPEGStreamingTools.M3u8Generators
 {   
@@ -18,21 +19,26 @@ namespace FFMPEGStreamingTools.M3u8Generators
         // I don't really know why I've set it.
 		private const double maxConnectionLatencySeconds = 5 * 60;
 		private readonly StreamingProcManager _procManager;
+		private readonly FFMPEGConfig _ffmpegCfg;
+		private readonly StreamSourceCfgLoader _streamSourceCfgLoader;
 
-		public M3U8GeneratorDefault(StreamingProcManager procManager)
+		public M3U8GeneratorDefault(
+			IConfiguration cfg,
+			StreamSourceCfgLoader streamSourceCfgLoader,
+			StreamingProcManager procManager)
 		{
 			_procManager = procManager;
+			_ffmpegCfg = FFMPEGConfig.Load(cfg);
+			_streamSourceCfgLoader = streamSourceCfgLoader;
 		}
 
 		public M3U8Playlist GenerateM3U8(
-			FFMPEGConfig ffmpegCfg,
-			IEnumerable<StreamSource> streamsCfgs,
 			string channel,
 			DateTime time,
 			int hlsLstSize)
 		{
+			var streamsCfgs = _streamSourceCfgLoader.LoadStreamSources();
 			BasicInitializations(
-				ffmpegCfg,
 				streamsCfgs,
 				channel,
 				out var streamCfg,
@@ -76,15 +82,13 @@ namespace FFMPEGStreamingTools.M3u8Generators
 		}
 
 		public M3U8Playlist GenerateNextM3U8(
-			FFMPEGConfig ffmpegCfg,
-			IEnumerable<StreamSource> streamsCfgs,
 			string channel,
 			int hlsLstSize,
 			int lastFileIndex,
 			DateTime lastFileTimeSpan)
 		{
+			var streamsCfgs = _streamSourceCfgLoader.LoadStreamSources();
 			BasicInitializations(
-                ffmpegCfg,
                 streamsCfgs,
                 channel,
                 out var streamCfg,
@@ -124,17 +128,19 @@ namespace FFMPEGStreamingTools.M3u8Generators
 		}
 
 		private void BasicInitializations(
-			FFMPEGConfig ffmpegCfg,
             IEnumerable<StreamSource> streamsCfgs,
             string channel,
 			out StreamSource streamCfg,
 			out string channelRoot)
 		{
+			if (streamsCfgs == null)
+				throw new NoSuchChannelException(channel);
+			
 			streamCfg = streamsCfgs.FirstOrDefault(x => x.Name == channel);
             if (streamCfg == null)
-                throw new NoSuchChannelException(streamCfg.Name);
+				throw new NoSuchChannelException(channel);
 
-            channelRoot = $"{ffmpegCfg.ChunkStorageDir}/{channel}/";
+			channelRoot = $"{_ffmpegCfg.ChunkStorageDir}/{channel}/";
 		}
 
 		private IEnumerable<ChunkFile> GatherRequiredChunks(

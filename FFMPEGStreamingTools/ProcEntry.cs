@@ -7,6 +7,7 @@ namespace FFMPEGStreamingTools
     {
 		public Process Proc { get; set; }
 		public string Name { get; set; }
+		public int Hash { get; set; }
 		internal bool closeRequested = false;
 
 		public void CloseProcess()
@@ -16,10 +17,18 @@ namespace FFMPEGStreamingTools
 
 			closeRequested = true;
 
-			Proc.CloseMainWindow();
-			Proc.Close();
+			Proc.Kill();
+			Proc.Dispose();
+		}
 
-			Proc.Dispose();         
+		public void Restart(Action chunkingAction)
+		{
+			closeRequested = false;
+
+			if (Proc == null || Proc.HasExited)
+				chunkingAction.Invoke();
+			else
+				Proc.Kill();
 		}
     }
 }

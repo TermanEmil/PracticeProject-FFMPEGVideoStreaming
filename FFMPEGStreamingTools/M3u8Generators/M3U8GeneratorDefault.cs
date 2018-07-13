@@ -23,12 +23,12 @@ namespace FFMPEGStreamingTools.M3u8Generators
 		private readonly StreamSourceCfgLoader _streamSourceCfgLoader;
 
 		public M3U8GeneratorDefault(
-			IConfiguration cfg,
+			FFMPEGConfig ffmpegCfg,
 			StreamSourceCfgLoader streamSourceCfgLoader,
 			StreamingProcManager procManager)
 		{
 			_procManager = procManager;
-			_ffmpegCfg = FFMPEGConfig.Load(cfg);
+			_ffmpegCfg = ffmpegCfg;
 			_streamSourceCfgLoader = streamSourceCfgLoader;
 		}
 
@@ -53,9 +53,6 @@ namespace FFMPEGStreamingTools.M3u8Generators
                 time,
                 channelRoot);
 			
-			var stopwatch = new Stopwatch();
-            stopwatch.Start();
-
             var files = GetFilesInsideTimeRange(
                 channelRoot,
                 targetTime.AddSeconds(-1.2 * chunkTime),
@@ -64,10 +61,6 @@ namespace FFMPEGStreamingTools.M3u8Generators
 					chunkTime * (hlsLstSize + safeHlsLstDelta + 1))
 			);
 
-            stopwatch.Stop();
-            //Console.WriteLine("[Stopwatch]: DirectoryGetFiles:" +
-                              //$"{stopwatch.ElapsedMilliseconds}");
-
             var fileChunks = GatherRequiredChunks(
 				chunkTime,
 				files,
@@ -75,7 +68,6 @@ namespace FFMPEGStreamingTools.M3u8Generators
                 hlsLstSize);
 
 			return CombineChunksIntoPlaylist(
-				channel,
 				channelRoot,
 				chunkTime,
 				fileChunks);
@@ -98,9 +90,6 @@ namespace FFMPEGStreamingTools.M3u8Generators
             var chunkTime = streamCfg.ChunkTime;         
 			var targetTime = lastFileTimeSpan;
              
-            var stopwatch = new Stopwatch();
-            stopwatch.Start();
-
             var files = GetFilesInsideTimeRange(
                 channelRoot,
 				targetTime,
@@ -108,10 +97,6 @@ namespace FFMPEGStreamingTools.M3u8Generators
 					maxConnectionLatencySeconds +
 					chunkTime * (hlsLstSize + safeHlsLstDelta + 1))
 			);
-
-            stopwatch.Stop();
-            //Console.WriteLine("[Stopwatch]: DirectoryGetFiles:" +
-                              //$"{stopwatch.ElapsedMilliseconds}");
 
             var fileChunks = GatherRequiredChunks(
                 chunkTime,
@@ -121,7 +106,6 @@ namespace FFMPEGStreamingTools.M3u8Generators
 				lastFileIndex);
 
             return CombineChunksIntoPlaylist(
-                channel,
                 channelRoot,
                 chunkTime,
                 fileChunks);         
@@ -176,11 +160,6 @@ namespace FFMPEGStreamingTools.M3u8Generators
                     .ToArray();
 			}
 
-			var stopwatch = new Stopwatch();
-            stopwatch.Start();
-    //        Console.WriteLine(
-				//$"[Stopwatch]: Select Chunks: {stopwatch.ElapsedMilliseconds}");
-
             if (chunks.Length != hlsLstSize + safeHlsLstDelta)
             {
                 throw new NoAvailableFilesException(
@@ -216,9 +195,6 @@ namespace FFMPEGStreamingTools.M3u8Generators
             DateTime targetTime,
             string chunksRoot)
         {
-            var stopwatch = new Stopwatch();
-            stopwatch.Start();
-
             var mostRecent =
                 GetFilesInsideTimeRange(
                     chunksRoot,
@@ -230,10 +206,6 @@ namespace FFMPEGStreamingTools.M3u8Generators
 
             if (mostRecent == null)
                 throw new NoAvailableFilesException(0, chunksCount);
-
-            stopwatch.Stop();
-    //        Console.WriteLine(
-				//$"[Stopwatch]: GetNewest: {stopwatch.ElapsedMilliseconds}");
 
             var newestChunk = new ChunkFile(mostRecent);
             var newestDateTime = TimeTools
@@ -299,7 +271,6 @@ namespace FFMPEGStreamingTools.M3u8Generators
         }
 
 		private M3U8Playlist CombineChunksIntoPlaylist(
-			string channel,
 			string channelRoot,
 			double chunkTime,
 			IEnumerable<ChunkFile> chunks)
@@ -316,9 +287,7 @@ namespace FFMPEGStreamingTools.M3u8Generators
 				files = chunks.Select(file => new M3U8File
 				{
 					extinf = chunkTime,
-					isDiscont = _procManager
-						.chunkDiscontinuities[channel]
-						.Contains(file.index),
+					isDiscont = file.isDiscont,
 					fileIndex = file.index,
 					filePath = file.fullPath.Replace(channelRoot, "")
 				})

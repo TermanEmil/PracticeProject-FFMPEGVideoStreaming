@@ -1,8 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using FFMPEGStreamingTools.StreamingSettings;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
@@ -14,10 +12,10 @@ namespace FFMPEGStreamingTools.Utils
 		private readonly ILogger<StreamSourceCfgLoader> _logger;
 
 		public StreamSourceCfgLoader(
-			IConfiguration cfg,
+			FFMPEGConfig ffmpegCfg,
 			ILogger<StreamSourceCfgLoader> logger)
 		{
-			_ffmpegCfg = FFMPEGConfig.Load(cfg);
+			_ffmpegCfg = ffmpegCfg;
 			_logger = logger;
 		}
 

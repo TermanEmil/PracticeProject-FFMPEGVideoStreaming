@@ -17,24 +17,16 @@ namespace FFMPEGStreamingTools
 		public ConcurrentBag<ProcEntry> processes =
 			new ConcurrentBag<ProcEntry>();
 		public bool LogToStdout { get; set; } = true;
-
-		// Sets of chunk indexes with file discontinuities.
-		// Used in M3U8 generator.
-		public
-		ConcurrentDictionary<string, ConcurrentBag<int>> chunkDiscontinuities;
-    	      
+              
 		private readonly FFMPEGConfig _ffmpegCfg;
 		private readonly StreamSourceCfgLoader _streamSourceCfgLoader;
 
 		public StreamingProcManager(
-			IConfiguration cfg,
+			FFMPEGConfig ffmpegCfg,
 			StreamSourceCfgLoader streamSourceCfgLoader)
 		{
-			_ffmpegCfg = FFMPEGConfig.Load(cfg);
+			_ffmpegCfg = ffmpegCfg;
 			_streamSourceCfgLoader = streamSourceCfgLoader;
-
-			chunkDiscontinuities =
-				new ConcurrentDictionary<string, ConcurrentBag<int>>();
 		}
 
 		public void StartChunkingTask(StreamSource streamCfg)
@@ -44,33 +36,21 @@ namespace FFMPEGStreamingTools
 
 		private void StartChunking(StreamSource streamCfg)
 		{
-			if (!chunkDiscontinuities.ContainsKey(streamCfg.Name))
-				chunkDiscontinuities.TryAdd(
-					streamCfg.Name, new ConcurrentBag<int>());
-
+			var proc = new Process();
 			var nextID = GetLastProducedIndex(streamCfg);
-            if (nextID != 0 &&
-                !chunkDiscontinuities[streamCfg.Name].Contains(nextID))
-            {
-                chunkDiscontinuities[streamCfg.Name].Add(nextID);
-            }
 
 			var procInfo = new ProcessStartInfo()
 			{
 				FileName = _ffmpegCfg.BinaryPath,
 				UseShellExecute = false,
-				Arguments = GenerateProcArguments(streamCfg, nextID)
+				Arguments = GenerateProcArguments(streamCfg, proc.Id, nextID)
 			};
 
 			procInfo.RedirectStandardOutput = !LogToStdout;
 			procInfo.RedirectStandardError = !LogToStdout;
 
-			var proc = new Process
-			{
-				StartInfo = procInfo,
-				EnableRaisingEvents = true
-			};
-
+			proc.StartInfo = procInfo;
+			proc.EnableRaisingEvents = true;         
 			proc.Exited += OnProcExit;
 			var procEntry = processes.FirstOrDefault(
 				x => x.Name == streamCfg.Name);
@@ -93,10 +73,12 @@ namespace FFMPEGStreamingTools
 
 		private string GenerateProcArguments(
 			StreamSource streamCfg,
+            int procID,
 			int startID)
 		{
 			var root = _ffmpegCfg.ChunkStorageDir + "/" + streamCfg.Name + "/";
-            var segmentFilename = root + $"%Y/%m/%d/%H/%M/%s-%%06d.ts";
+			var segmentFilename =
+				root + $"%Y/%m/%d/%H/%M/%s-%%06d-{procID:0000000}.ts";
             var m3u8File = root + "index.m3u8";
             
 			return string.Join(" ", new[]

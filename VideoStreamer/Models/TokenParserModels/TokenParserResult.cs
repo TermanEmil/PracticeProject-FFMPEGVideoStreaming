@@ -1,10 +1,18 @@
 ﻿using System;
+using FFMPEGStreamingTools.Models;
+using Microsoft.AspNetCore.Mvc;
+
 namespace VideoStreamer.Models.TokenParserModels
 {
-    public class TokenParserResult
+	public struct TokenParseResult
     {
-        public TokenParserResult()
+        public StreamingSession session;
+        public IActionResult actionResult;
+
+        public TokenParseResult(StreamingSession session, IActionResult ac)
         {
+            this.session = session;
+            this.actionResult = ac;
         }
     }
 }

@@ -1,10 +1,10 @@
 ﻿using System;
+using FFMPEGStreamingTools.Models;
+
 namespace FFMPEGStreamingTools.SessionBrokers
 {
-    public class ISessionBroker
+	public interface ISessionBroker
     {
-        public ISessionBroker()
-        {
-        }
+		StreamingSession InitializeSession(SessionBrokerModel model);
     }
 }

@@ -3,7 +3,7 @@
 while true
 do
 	_pid="$(pgrep -f dotnet)"
-	_cmd="$(ps -o command $_pid | grep VideoStreamer.dll)"
+	_cmd="$(ps -o command $_pid | grep ChunksGenerator.API.dll)"
 	
 	if [[ -z "$_pid" || -z "$_cmd" ]]
 	then

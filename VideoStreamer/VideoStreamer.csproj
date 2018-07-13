@@ -15,9 +15,12 @@
     <Folder Include="wwwroot\js\" />
     <Folder Include="Models\LogFileViewModels\" />
     <Folder Include="Utils\" />
-    <Folder Include="DB\" />
     <Folder Include="Views\Streamer\" />
     <Folder Include="Models\Configs\" />
+    <Folder Include="Services\" />
+    <Folder Include="Services\TokenParsers\" />
+    <Folder Include="Models\TokenParserModels\" />
+    <Folder Include="Db\" />
   </ItemGroup>
     
   <ItemGroup>
@@ -95,6 +98,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Remove="Views\LogFile\Index.cshtml" />
+    <Content Remove="Channels.json" />
   </ItemGroup>
 
   <Target Name="ChangeAliasesOfStrongNameAssemblies" BeforeTargets="FindReferenceAssembliesForReferences;ResolveReferences">

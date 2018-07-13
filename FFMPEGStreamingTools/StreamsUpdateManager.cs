@@ -16,14 +16,13 @@ namespace FFMPEGStreamingTools
 		private readonly StreamSourceCfgLoader _streamSourceCfgLoader;
 
 		public StreamsUpdateManager(
-			IConfiguration cfg,
+			FFMPEGConfig ffmpegCfg,
 			StreamingProcManager procManager,
 			StreamSourceCfgLoader streamSourceCfgLoader)
 		{
 			_procManager = procManager;
 			_streamSourceCfgLoader = streamSourceCfgLoader;
-
-			var ffmpegCfg = FFMPEGConfig.Load(cfg);
+   
 			var watcher = new FileSystemWatcher
             {
 				Filter = "*" + Path.GetFileName(ffmpegCfg.ChannelsCfgPath),

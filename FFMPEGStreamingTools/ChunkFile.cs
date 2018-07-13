@@ -9,7 +9,9 @@ namespace FFMPEGStreamingTools
         public string fullPath;
         public int timeSeconds;
         public int index;
-		      
+		public int procID;
+		public bool isDiscont = false;
+        
         public ChunkFile(string fullPath)
         {
             this.fullPath = fullPath;
@@ -18,6 +20,7 @@ namespace FFMPEGStreamingTools
             var numbersStr = Regex.Split(fileName, @"\D+");
             this.timeSeconds = int.Parse(numbersStr[0]);
             this.index = int.Parse(numbersStr[1]);
+			this.procID = int.Parse(numbersStr[2]);
         }
     }
 }

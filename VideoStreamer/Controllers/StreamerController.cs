@@ -6,6 +6,8 @@ using System.Text;
 using System.Threading.Tasks;
 using FFMPEGStreamingTools;
 using FFMPEGStreamingTools.M3u8Generators;
+using FFMPEGStreamingTools.Models;
+using FFMPEGStreamingTools.SessionBrokers;
 using FFMPEGStreamingTools.StreamingSettings;
 using FFMPEGStreamingTools.TokenBrokers;
 using FFMPEGStreamingTools.Utils;
@@ -18,6 +20,8 @@ using Microsoft.Net.Http.Headers;
 using Newtonsoft.Json;
 using VideoStreamer.Db;
 using VideoStreamer.Models.Configs;
+using VideoStreamer.Models.TokenParserModels;
+using VideoStreamer.Services.TokenParsers;
 using VideoStreamer.Utils;
 
 namespace VideoStreamer.Controllers
@@ -26,31 +30,30 @@ namespace VideoStreamer.Controllers
 	public class StreamerController : Controller
 	{      
 		private readonly FFMPEGConfig _ffmpegCfg;
-		private readonly List<StreamSource> _streamsCfg;
 		private readonly IM3U8Generator _m3u8Generator;
-		private readonly StreamerContext _dbContext;
 		private readonly IDistributedCache _cache;
 		private readonly ITokenBroker _tokenBroker;
+		private readonly ITokenParser _tokenParser;
+		private readonly ISessionBroker _sessionBroker;
 		private readonly StreamerSessionCfg _sessionCfg;
 
 		public StreamerController(
-			IServiceProvider serviceProvider,
-			IConfiguration cfg,
+			FFMPEGConfig ffmpegCfg,
+			StreamerSessionCfg streamerSessionCfg,
 			IM3U8Generator m3u8Generator,
-			StreamerContext dbContext,
 			IDistributedCache cache,
 			ITokenBroker tokenBroker,
-			ILoggerFactory loggerFactory,
-			StreamSourceCfgLoader streamSourceCfgLoader)
+			ISessionBroker sessionBroker,
+			ITokenParser tokenParser)
 		{
 			_m3u8Generator = m3u8Generator;
-			_dbContext = dbContext;
 			_cache = cache;
 			_tokenBroker = tokenBroker;
+			_tokenParser = tokenParser;
+			_sessionBroker = sessionBroker;
 
-			_ffmpegCfg = FFMPEGConfig.Load(cfg);
-			_sessionCfg = StreamerSessionCfg.Load(cfg);
-			_streamsCfg = streamSourceCfgLoader.LoadStreamSources();         
+			_ffmpegCfg = ffmpegCfg;
+			_sessionCfg = streamerSessionCfg;
 		}
         
 		[Route("Stream/{channel}/index.m3u8")]
@@ -59,7 +62,8 @@ namespace VideoStreamer.Controllers
 			int listSize = 5,
 			string timeStr = null,
 			int timeShiftMills = 0,
-			bool displayContent = false)
+			bool displayContent = false,
+			string registrationToken = null)
 		{
 			return await Task.Run(
 				() => StreamInternalAsync(
@@ -67,7 +71,8 @@ namespace VideoStreamer.Controllers
 					listSize,
 					timeStr,
 					timeShiftMills,
-					displayContent)
+					displayContent,
+					registrationToken)
 			);
 		}
 
@@ -76,7 +81,8 @@ namespace VideoStreamer.Controllers
 			int listSize = 5,
 			string timeStr = null,
 			int timeShiftMills = 0,
-			bool displayContent = false)
+			bool displayContent = false,
+			string registrationToken = null)
 		{
 			DateTime requiredTime;
 
@@ -96,20 +102,27 @@ namespace VideoStreamer.Controllers
 			if (timeShiftMills != 0)
 				requiredTime = requiredTime.AddMilliseconds(-timeShiftMills);
 
-			StreamingSession session;         
+			StreamingSession session;
+			var sessionBrokerModel = new SessionBrokerModel
+			{
+				Channel = channel,
+				ListSize = listSize,
+				RequiredTime = requiredTime,
+				DisplayContent = displayContent,
+				RegistrationToken = registrationToken,
+				IP = HttpContext.Connection.RemoteIpAddress.ToString(),
+				UserAgent = HttpContext.Request.Headers[HeaderNames.UserAgent]
+			};
+
 			try
 			{
-				session = InitializeSession(
-					channel,
-					requiredTime,
-					listSize,
-					displayContent);
+				session = _sessionBroker.InitializeSession(sessionBrokerModel);
 			}
 			catch (M3U8GeneratorException e)
             { return Content(e.Message); }
 
 			var token = _tokenBroker.GenerateToken(
-				channel + GetConnectionDetails(),
+				session,
 				_sessionCfg.TokenSALT);
 			
 			try
@@ -120,38 +133,9 @@ namespace VideoStreamer.Controllers
 					GetSessionExpiration());
 			}
 			catch (Exception)
-			{ return RedisConnectionException(); }
+			{ return View("RedisConnectionException"); }
 
 			return RedirectToAction("TokenizedStreamAsync", new { token });
-		}
-
-		private StreamingSession InitializeSession(
-			string channel,
-			DateTime requiredTime,
-		    int listSize,
-			bool displayContent)
-		{
-			var playlist = _m3u8Generator.GenerateM3U8(
-                channel,
-                requiredTime,
-                listSize);
-
-            var firstFile =
-                new ChunkFile(playlist.files.First().filePath);
-
-            var lastFileTime =
-                TimeTools.SecondsToDateTime(firstFile.timeSeconds)
-                         .Add(DateTimeOffset.Now.Offset);
-
-			return new StreamingSession
-            {
-                Channel = channel,
-                HlsListSize = listSize,
-				ConnectionDetails = GetConnectionDetails(),
-                LastFileIndex = firstFile.index - 1,
-                LastFileTimeSpan = lastFileTime,
-                DisplayContent = displayContent
-            };
 		}
 
 		[Route("TokenizedStream/{channel}/index.m3u8")]
@@ -167,15 +151,17 @@ namespace VideoStreamer.Controllers
 			string channel,
 			string token = null)
 		{
-			var tuple = await BasicTokenValidationsAsync(token, channel);
-            var session = tuple.Item1;
-            var invalidRequestActionResult = tuple.Item2;
+			var tokenParseResult = await _tokenParser.ParseAsync(
+			new TokenParserModel
+			{
+				Channel = channel, Token = token, HttpContext = HttpContext
+			});
+			var session = tokenParseResult.session;
 
 			if (session == null)
-				return invalidRequestActionResult;
+				return tokenParseResult.actionResult;
 
-			M3U8Playlist playlist;
-
+			M3U8Playlist playlist;         
 			try
 			{
 				playlist = _m3u8Generator.GenerateNextM3U8(
@@ -211,7 +197,7 @@ namespace VideoStreamer.Controllers
 					GetSessionExpiration());
 			}
 			catch (Exception)
-			{ return RedisConnectionException(); }
+			{ return View("RedisConnectionException"); }
 
 			var result = playlist.Bake($"token={token}");
 			if (session.DisplayContent)
@@ -232,13 +218,18 @@ namespace VideoStreamer.Controllers
 			string fileName,
 			string token = null)
 		{
-			var tuple = await BasicTokenValidationsAsync(token, channel);
-			var session = tuple.Item1;
-			var invalidRequestActionResult = tuple.Item2;
+			var tokenParseResult = await _tokenParser.ParseAsync(
+                new TokenParserModel
+                {
+                    Channel = channel,
+                    Token = token,
+                    HttpContext = HttpContext
+                });
+            var session = tokenParseResult.session;
 
             if (session == null)
-                return invalidRequestActionResult;         
-
+                return tokenParseResult.actionResult;
+            
 			var path = Path.Combine(
 				_ffmpegCfg.ChunkStorageDir,
 				channel,
@@ -274,55 +265,6 @@ namespace VideoStreamer.Controllers
 
             return result;
         }
-
-		private async
-		Task<Tuple<StreamingSession, IActionResult>> BasicTokenValidationsAsync(
-			string token,
-			string channel)
-		{         
-			while (true)
-			{
-				if (token == null)
-					break;
-
-				StreamingSession session;            
-				try
-				{
-					session = await _cache.GetAsync<StreamingSession>(token);
-				}
-				catch (Exception)
-                {
-					return new Tuple<StreamingSession, IActionResult>(
-						null, RedisConnectionException());
-                }
-
-				if (session == null)
-					break;
-
-				if (channel != session.Channel)
-					break;
-    
-				if (session.ConnectionDetails != GetConnectionDetails())
-				{
-					return new Tuple<StreamingSession, IActionResult>(
-						null, Unauthorized());
-				}
-
-				return new Tuple<StreamingSession, IActionResult>(
-					session, null);
-			}
-
-			return new Tuple<StreamingSession, IActionResult>(
-				null, NotFound());
-		}
-        
-		private string GetConnectionDetails()
-		{
-			var userAgent = HttpContext.Request.Headers[HeaderNames.UserAgent];
-            var ip = HttpContext.Connection.RemoteIpAddress;
-
-			return $"userAgent: '{userAgent}'; ip: {ip}";
-		}
         
 		private DistributedCacheEntryOptions GetSessionExpiration()
 		{
@@ -330,12 +272,7 @@ namespace VideoStreamer.Controllers
 				.SetAbsoluteExpiration(
 					TimeSpan.FromSeconds(
 						_sessionCfg.ExpirationTimeSeconds));
-		}
-
-		private IActionResult RedisConnectionException()
-		{
-			return Content("The database server is not responding.");
-		}
+		}      
         #endregion
 	}
 }

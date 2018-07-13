@@ -1,16 +1,29 @@
 ﻿using System;
 using System.Security.Cryptography;
 using System.Text;
-using Microsoft.Extensions.Configuration;
+using FFMPEGStreamingTools.Models;
 
 namespace FFMPEGStreamingTools.TokenBrokers
 {
 	public class SHA256TokenBroker : ITokenBroker
 	{
-		public string GenerateToken(string someStrData, string salt)
+		public string GenerateToken(StreamingSession session, string salt)
 		{
-			var strToHash = someStrData + DateTime.Now + salt;         
-            return SHA256Encrypt(strToHash);
+			var strToHash = string.Join("", new[]
+			{
+				session.Channel,
+				session.IP,
+				session.UserAgent,
+				DateTime.Now.ToString(),
+				salt
+			});
+
+			return String.Join("", new[]
+			{
+				session.SessionType.ToString(),
+                "_",
+				SHA256Encrypt(strToHash)
+			});
 		}
 
 		private static string SHA256Encrypt(string phrase)

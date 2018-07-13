@@ -1,4 +1,5 @@
 ﻿using System;
+using FFMPEGStreamingTools.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace VideoStreamer.Db

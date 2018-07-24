@@ -16,7 +16,7 @@
   <ItemGroup>
     <ProjectReference Include="..\DataLayer\DataLayer.csproj" />
     <ProjectReference Include="..\ChunksGenerator.BusinessLogic\ChunksGenerator.BusinessLogic.csproj" />
-    <ProjectReference Include="..\CommonLogic\CommonLogic.csproj" />
+    <ProjectReference Include="..\Shared.Logic\Shared.Logic.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="Controllers\ValuesController.cs" />

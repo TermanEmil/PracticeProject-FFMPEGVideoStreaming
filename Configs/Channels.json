@@ -1,17 +1,7 @@
 ﻿[
   {
-    "Link": "http://radiolive.trm.md:8000/PGM1_128kb",
+    "Link": "http://videos-f.jwpsrv.com/content/conversions/zWLy8Jer/videos/21ETjILN-1753142.mp4.m3u8?token=0_5b576299_0x63c785d75235f07586212b4bcfa2eea114fec4fd",
     "Name": "RadioMD",
-    "ChunkTime": 2
-  },
-  {
-    "Link": "http://radiolive.trm.md:8000/PGM1_128kb",
-    "Name": "RadioMD2",
-    "ChunkTime": 2
-  },
-  {
-    "Link": "http://radiolive.trm.md:8000/PGM1_128kb",
-    "Name": "RadioMD3",
     "ChunkTime": 2
   }
   //{

@@ -1,16 +1,16 @@
-﻿using FFMPEGStreamingTools;
-using FFMPEGStreamingTools.M3u8Generators;
+﻿using DataLayer.Configs;
 using FFMPEGStreamingTools.SessionBrokers;
 using FFMPEGStreamingTools.StreamingSessionTypeIdentifiers;
-using FFMPEGStreamingTools.StreamingSettings;
 using FFMPEGStreamingTools.TokenBrokers;
 using FFMPEGStreamingTools.UserTypeIdentifiers;
-using FFMPEGStreamingTools.Utils;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Shared.Logic;
+using VideoStreamer.BusinessLogic.ChunksCollectors;
+using VideoStreamer.BusinessLogic.PlaylistAssemblers;
 using VideoStreamer.Db;
 using VideoStreamer.Models.Configs;
 using VideoStreamer.Services.TokenParsers;
@@ -43,16 +43,19 @@ namespace VideoStreamer
 			});
 
 			// Custom stuff
-			services.AddSingleton<StreamingProcManager>();
-			services.AddSingleton<StreamsUpdateManager>();
+			//services.AddSingleton<StreamingProcManager>();
+			//services.AddSingleton<StreamsUpdateManager>();
             
-			services.AddSingleton(FFMPEGConfig.Load(_cfg));
+			services.AddSingleton(ChunkerConfig.Load(_cfg));         
 			services.AddSingleton(StreamerSessionCfg.Load(_cfg));
+			services.AddSingleton<StreamsConfig>();
+            services.AddSingleton<StreamsUpdateWatcher>();
 
-			services.AddTransient<IM3U8Generator, M3U8GeneratorDefault>();
+			services.AddTransient<IChunkCollector, ChunkCollector>();
+			services.AddTransient<
+					IPlaylistAssembler, SimplePlaylistAssembler>();
 			services.AddTransient<ITokenBroker, SHA256TokenBroker>();
 			services.AddTransient<ITokenParser, TokenParser>();
-			services.AddTransient<StreamSourceCfgLoader>();
 			services.AddTransient<ISessionBroker, SessionBroker>();
 
 			services.AddTransient<UserTypeIdentifier>();
@@ -74,10 +77,18 @@ namespace VideoStreamer
 			app.UseMvc();
 			app.UseStaticFiles();
 
+			// Load the stream sources.
+            var streamsConfig = app.ApplicationServices
+                                   .GetService<StreamsConfig>();
+            streamsConfig.Reload();
+
 			// Singleton intializations.
-			app.ApplicationServices.GetService<StreamingProcManager>();
-			app.ApplicationServices.GetService<StreamsUpdateManager>()
-			   .UpdateChannels();
+			var updateWatcher = app.ApplicationServices
+                                   .GetService<StreamsUpdateWatcher>();
+
+            // Add the event handlers on channels change.
+            updateWatcher.AddEventHandlerOnFileChange(
+                (s, a) => streamsConfig.Reload());
 		}
 	}
 }

@@ -1,48 +1,49 @@
 ﻿using System;
 using System.Linq;
-using FFMPEGStreamingTools.M3u8Generators;
+using DataLayer;
 using FFMPEGStreamingTools.Models;
 using FFMPEGStreamingTools.UserTypeIdentifiers;
 using FFMPEGStreamingTools.Utils;
+using VideoStreamer.BusinessLogic.ChunksCollectors;
+using VideoStreamer.BusinessLogic.Models.ChunksCollectorModels;
+using VideoStreamer.BusinessLogic.PlaylistAssemblers;
 
 namespace FFMPEGStreamingTools.SessionBrokers
 {
 	public class SessionBroker : ISessionBroker
     {
-		private readonly IM3U8Generator _m3u8Generator;
+		private readonly IChunkCollector _chunkCollector;
 		private readonly UserTypeIdentifier _userTypeIdentifier;
 
 		public SessionBroker(
-			IM3U8Generator m3u8Generator,
+			IChunkCollector chunkCollector,
 			UserTypeIdentifier userTypeIdentifier)
 		{
-			_m3u8Generator = m3u8Generator;
+			_chunkCollector = chunkCollector;
 			_userTypeIdentifier = userTypeIdentifier;
 		}
 
-		public StreamingSession InitializeSession(SessionBrokerModel model)
+		public StreamSession InitializeSession(SessionBrokerModel model)
 		{
-			var playlist = _m3u8Generator.GenerateM3U8(
-                model.Channel,
-				model.RequiredTime,
-				model.ListSize);
+			var closestChunk = _chunkCollector.GetClosestChunk(
+				new ChunksCollectorModelByTime
+				{
+					Channel = model.Channel,
+					HlsListSize = model.ListSize,
+					RequestedTime = model.RequiredTime
+				}
+			);
 
-            var firstFile = new ChunkFile(playlist.files.First().filePath);
-
-            var lastFileTime =
-                TimeTools.SecondsToDateTime(firstFile.timeSeconds)
-                         .Add(DateTimeOffset.Now.Offset);
-            
-			return new StreamingSession
+			return new StreamSession
 			{
 				Channel = model.Channel,
 				HlsListSize = model.ListSize,
 				IP = model.IP,
 				UserAgent = model.UserAgent,
-				LastFileIndex = firstFile.index - 1,
-				LastFileTimeSpan = lastFileTime,
 				DisplayContent = model.DisplayContent,
-				SessionType = _userTypeIdentifier.Identify(model)
+				MediaSeq = 0,
+				DiscontSeq = 0,
+				LastFilePath = closestChunk.fullPath
             };
 		}
     }

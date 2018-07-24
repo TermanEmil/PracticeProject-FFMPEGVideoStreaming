@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace FFMPEGStreamingTools.Utils
+namespace Shared.Logic.Utils
 {
 	public static class TimeTools
     {
@@ -17,10 +17,26 @@ namespace FFMPEGStreamingTools.Utils
 			return unixEpoch.AddSeconds(seconds);
 		}
 
+		public static DateTime SecsToDateWithOffset(int seconds)
+        {
+            return unixEpoch.AddSeconds(seconds)
+				            .Add(DateTimeOffset.Now.Offset);
+        }
+
 		public static double CurrentSeconds()
 		{
 			return DateTime.Now.Add(-DateTimeOffset.Now.Offset)
 				           .ToUnixTimeSeconds();
 		}
+
+		public static string GetDir(this DateTime time)
+        {
+            return
+                $"{time.Year}/" +
+                $"{time.Month.ToString("00")}/" +
+                $"{time.Day.ToString("00")}/" +
+                $"{time.Hour.ToString("00")}/" +
+                $"{time.Minute.ToString("00")}/";
+        }
     }
 }

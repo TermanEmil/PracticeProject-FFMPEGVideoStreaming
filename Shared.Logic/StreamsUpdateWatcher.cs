@@ -2,7 +2,7 @@
 using System.IO;
 using DataLayer.Configs;
 
-namespace CommonLogic
+namespace Shared.Logic
 {
     public class StreamsUpdateWatcher
     {

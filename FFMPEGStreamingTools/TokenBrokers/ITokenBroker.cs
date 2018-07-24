@@ -1,10 +1,10 @@
 ﻿using System;
-using FFMPEGStreamingTools.Models;
+using DataLayer;
 
 namespace FFMPEGStreamingTools.TokenBrokers
 {
 	public interface ITokenBroker
     {
-		string GenerateToken(StreamingSession session, string salt);
+		string GenerateToken(StreamSession session, string salt);
     }
 }

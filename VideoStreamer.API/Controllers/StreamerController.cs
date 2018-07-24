@@ -1,24 +1,25 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using FFMPEGStreamingTools;
-using FFMPEGStreamingTools.M3u8Generators;
+using DataLayer;
+using DataLayer.Configs;
 using FFMPEGStreamingTools.Models;
 using FFMPEGStreamingTools.SessionBrokers;
 using FFMPEGStreamingTools.StreamingSettings;
 using FFMPEGStreamingTools.TokenBrokers;
-using FFMPEGStreamingTools.Utils;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using Microsoft.Net.Http.Headers;
 using Newtonsoft.Json;
-using VideoStreamer.Db;
+using Shared.Logic;
+using VideoStreamer.BusinessLogic.ChunksCollectors;
+using VideoStreamer.BusinessLogic.Models;
+using VideoStreamer.BusinessLogic.Models.ChunksCollectorModels;
+using VideoStreamer.BusinessLogic.PlaylistAssemblers;
 using VideoStreamer.Models.Configs;
 using VideoStreamer.Models.TokenParserModels;
 using VideoStreamer.Services.TokenParsers;
@@ -28,31 +29,34 @@ namespace VideoStreamer.Controllers
 {
 	[Route("api")]
 	public class StreamerController : Controller
-	{      
-		private readonly FFMPEGConfig _ffmpegCfg;
-		private readonly IM3U8Generator _m3u8Generator;
+	{
 		private readonly IDistributedCache _cache;
 		private readonly ITokenBroker _tokenBroker;
 		private readonly ITokenParser _tokenParser;
 		private readonly ISessionBroker _sessionBroker;
+		private readonly IChunkCollector _chunkCollector;
+		private readonly IPlaylistAssembler _playlistAssembler;
+		private readonly ChunkerConfig _chunkerConfig;
 		private readonly StreamerSessionCfg _sessionCfg;
 
 		public StreamerController(
-			FFMPEGConfig ffmpegCfg,
+			ChunkerConfig chunkerConfig,
 			StreamerSessionCfg streamerSessionCfg,
-			IM3U8Generator m3u8Generator,
 			IDistributedCache cache,
 			ITokenBroker tokenBroker,
 			ISessionBroker sessionBroker,
-			ITokenParser tokenParser)
+			ITokenParser tokenParser,
+			IChunkCollector chunkCollector,
+			IPlaylistAssembler playlistAssembler)
 		{
-			_m3u8Generator = m3u8Generator;
 			_cache = cache;
 			_tokenBroker = tokenBroker;
 			_tokenParser = tokenParser;
 			_sessionBroker = sessionBroker;
+			_chunkCollector = chunkCollector;
+			_playlistAssembler = playlistAssembler;
 
-			_ffmpegCfg = ffmpegCfg;
+			_chunkerConfig = chunkerConfig;
 			_sessionCfg = streamerSessionCfg;
 		}
         
@@ -102,7 +106,7 @@ namespace VideoStreamer.Controllers
 			if (timeShiftMills != 0)
 				requiredTime = requiredTime.AddMilliseconds(-timeShiftMills);
 
-			StreamingSession session;
+			StreamSession session;
 			var sessionBrokerModel = new SessionBrokerModel
 			{
 				Channel = channel,
@@ -118,7 +122,7 @@ namespace VideoStreamer.Controllers
 			{
 				session = _sessionBroker.InitializeSession(sessionBrokerModel);
 			}
-			catch (M3U8GeneratorException e)
+			catch (ChunkCollectorException e)
             { return Content(e.Message); }
 
 			var token = _tokenBroker.GenerateToken(
@@ -152,10 +156,10 @@ namespace VideoStreamer.Controllers
 			string token = null)
 		{
 			var tokenParseResult = await _tokenParser.ParseAsync(
-			new TokenParserModel
-			{
-				Channel = channel, Token = token, HttpContext = HttpContext
-			});
+    			new TokenParserModel
+    			{
+    				Channel = channel, Token = token, HttpContext = HttpContext
+    			});
 			var session = tokenParseResult.session;
 
 			if (session == null)
@@ -164,30 +168,34 @@ namespace VideoStreamer.Controllers
 			M3U8Playlist playlist;         
 			try
 			{
-				playlist = _m3u8Generator.GenerateNextM3U8(
-					channel,
-					session.HlsListSize,
-					session.LastFileIndex,
-					session.LastFileTimeSpan);
+				var collectorModel = new ChunksCollectorModelByLast
+				{
+					Channel = session.Channel,
+					HlsListSize = session.HlsListSize,
+					LastChunkPath = session.LastFilePath
+				};
+				playlist = _playlistAssembler.Aseemble(
+					session,
+					_chunkCollector.GetNextBatch(collectorModel));
+				
+				//playlist = _m3u8Generator.GenerateNextM3U8(
+					//channel,
+					//session.HlsListSize,
+					//session.LastFileIndex,
+					//session.LastFileTimeSpan);
 			}
-            catch (M3U8GeneratorException e)
+			catch (ChunkCollectorException e)
             { return Content(e.Message); }
 
 			Console.WriteLine(
 				"[StreamCtrl]:> m3u8: {0} TOKEN: {1}",
 				string.Join(
 					", ",
-					playlist.files.Select(x => x.fileIndex)),
-				session.LastFileIndex
+					playlist.Files.Select(x => x.FilePath)),
+				session.LastFilePath
 			);
-
-			var firstFile =
-				new ChunkFile(playlist.files.First().filePath);
-
-			session.LastFileIndex = firstFile.index;
-			session.LastFileTimeSpan =
-				TimeTools.SecondsToDateTime(firstFile.timeSeconds)
-						 .Add(DateTimeOffset.Now.Offset);
+            
+			session.LastFilePath = playlist.Files.First().FilePath;
 
 			try
 			{
@@ -231,7 +239,7 @@ namespace VideoStreamer.Controllers
                 return tokenParseResult.actionResult;
             
 			var path = Path.Combine(
-				_ffmpegCfg.ChunkStorageDir,
+				_chunkerConfig.ChunkStorageDir,
 				channel,
 				year,
 				month,

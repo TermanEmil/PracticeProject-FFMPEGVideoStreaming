@@ -9,6 +9,5 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DataLayer\DataLayer.csproj" />
-    <ProjectReference Include="..\CommonLogic\CommonLogic.csproj" />
   </ItemGroup>
 </Project>

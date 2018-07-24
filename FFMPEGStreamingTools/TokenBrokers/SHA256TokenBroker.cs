@@ -1,13 +1,13 @@
 ﻿using System;
 using System.Security.Cryptography;
 using System.Text;
-using FFMPEGStreamingTools.Models;
+using DataLayer;
 
 namespace FFMPEGStreamingTools.TokenBrokers
 {
 	public class SHA256TokenBroker : ITokenBroker
 	{
-		public string GenerateToken(StreamingSession session, string salt)
+		public string GenerateToken(StreamSession session, string salt)
 		{
 			var strToHash = string.Join("", new[]
 			{
@@ -20,7 +20,7 @@ namespace FFMPEGStreamingTools.TokenBrokers
 
 			return String.Join("", new[]
 			{
-				session.SessionType.ToString(),
+				//session.SessionType.ToString(),
                 "_",
 				SHA256Encrypt(strToHash)
 			});

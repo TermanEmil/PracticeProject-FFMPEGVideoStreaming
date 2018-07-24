@@ -6,7 +6,6 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using ChunksGenerator.BusinessLogic.Models;
-using CommonLogic;
 using DataLayer.Configs;
 using Microsoft.Extensions.Logging;
 
@@ -17,6 +16,9 @@ namespace ChunksGenerator.BusinessLogic
 		private readonly ILogger<ChunkerProcManager> _logger;
 		private readonly ChunkerConfig _chunkerConfig;
 		private readonly StreamsConfig _streamsConfig;
+
+		private int procUniqueKey = 0;
+
 		public ConcurrentBag<ProcEntry> processes;
 		
 		public ChunkerProcManager(
@@ -79,9 +81,9 @@ namespace ChunksGenerator.BusinessLogic
             {
 				FileName = _chunkerConfig.BinaryPath,
                 UseShellExecute = false,
-				Arguments = GetProcArguments(streamSource)
+				Arguments = GetProcArguments(streamSource, procUniqueKey++)
             };
-
+            
 			var proc = new Process();
 			proc.StartInfo = procStartInfo;
             proc.EnableRaisingEvents = true;
@@ -108,18 +110,22 @@ namespace ChunksGenerator.BusinessLogic
 			}
 		}
 
-		private string GetProcArguments(StreamSource streamSource)
+		private string GetProcArguments(
+			StreamSource streamSource,
+		    int procID)
         {
 			var root = $"{_chunkerConfig.ChunkStorageDir}/{streamSource.Name}/";
-            var segmentFilename =
-                root + $"%Y/%m/%d/%H/%M/%s-%%06d.ts";
+			var segmentFilename =
+				root + $"%Y/%m/%d/%H/%M/%s-%%06d-{procID}.ts";
             var m3u8File = root + "index.m3u8";
 
             return string.Join(" ", new[]
             {
                 "-err_detect ignore_err",
-                "-reconnect 1 -reconnect_at_eof 1",
-                "-reconnect_streamed 1 -reconnect_delay_max 300",
+                "-reconnect 1",
+				//"-reconnect_at_eof 1",
+                "-reconnect_streamed 1",
+				"-reconnect_delay_max 300",
                 "-y -re",
                 "-hide_banner",
                 "-i " + streamSource.Link,

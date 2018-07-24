@@ -6,5 +6,12 @@
 
   <ItemGroup>
     <Folder Include="ChunksCollectors\" />
+    <Folder Include="Models\" />
+    <Folder Include="PlaylistAssemblers\" />
+    <Folder Include="Models\ChunksCollectorModels\" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DataLayer\DataLayer.csproj" />
+    <ProjectReference Include="..\Shared.Logic\Shared.Logic.csproj" />
   </ItemGroup>
 </Project>

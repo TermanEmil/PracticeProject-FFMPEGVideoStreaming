@@ -6,9 +6,11 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using DataLayer;
 using FFMPEGStreamingTools.StreamingSettings;
 using FFMPEGStreamingTools.Utils;
 using Microsoft.Extensions.Configuration;
+using Shared.Logic;
 
 namespace FFMPEGStreamingTools
 {   
@@ -161,7 +163,7 @@ namespace FFMPEGStreamingTools
 				return -1;
                      
 			File.Delete(mostRecent);
-			var mostRecentChunk = new ChunkFile(mostRecent);
+			var mostRecentChunk = ChunkFileLoader.Load(mostRecent);
 			return mostRecentChunk.index;
 		}
     }

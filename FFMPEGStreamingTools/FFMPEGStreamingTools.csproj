@@ -10,6 +10,7 @@
     <Compile Remove="M3u8Generators\PlaylistGenerator.cs" />
     <Compile Remove="Utils\FFMPEGConfigLoader.cs" />
     <Compile Remove="UserTypeIdentifiers\Utils.cs" />
+    <Compile Remove="M3u8Generators\IM3U8Generator.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Microsoft.Extensions.Configuration.Abstractions">
@@ -153,10 +154,12 @@
   <ItemGroup>
     <Folder Include="StreamingSettings\" />
     <Folder Include="Utils\" />
-    <Folder Include="M3u8Generators\" />
     <Folder Include="TokenBrokers\" />
     <Folder Include="SessionBrokers\" />
     <Folder Include="Models\" />
     <Folder Include="UserTypeIdentifiers\" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\VideoStreamer.BusinessLogic\VideoStreamer.BusinessLogic.csproj" />
   </ItemGroup>
 </Project>

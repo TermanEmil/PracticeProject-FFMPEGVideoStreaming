@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
-using FFMPEGStreamingTools.Models;
+using DataLayer;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Distributed;
@@ -25,11 +25,10 @@ namespace VideoStreamer.Services.TokenParsers
                 if (model.Token == null)
                     break;
 
-                StreamingSession session;
+                StreamSession session;
                 try
                 {
-                    session = await
-						_cache.GetAsync<StreamingSession>(model.Token);
+                    session = await _cache.GetAsync<StreamSession>(model.Token);
                 }
                 catch (Exception)
                 {

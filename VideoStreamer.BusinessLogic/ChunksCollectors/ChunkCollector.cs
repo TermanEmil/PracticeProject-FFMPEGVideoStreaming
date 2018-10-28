@@ -49,7 +49,7 @@ namespace VideoStreamer.BusinessLogic.ChunksCollectors
 
 			var files = GetFilesInsideTimeRange(
 				model.channelRoot,
-				minTime.AddSeconds(-3.2 * 1 * chunkTime),
+				minTime.AddSeconds(-2.2 * 1 * chunkTime),
 				minTime.AddSeconds(
 					1 * chunkTime * (model.HlsListSize + safeHlsLstDelta + 1))
 			);
@@ -134,7 +134,11 @@ namespace VideoStreamer.BusinessLogic.ChunksCollectors
 			if (mostRecent == null)
 				throw new NoAvailableFilesException($"0/{model.HlsListSize}");
 
-			var targetTime = model.RequestedTime;
+			var targetTime =
+				model.RequestedTime
+				     .AddSeconds(
+					     -model.streamSource.ChunkTime * model.HlsListSize);
+			
 			var newestChunk = ChunkFileLoader.Load(mostRecent);
 			var newestDateTime =
 				TimeTools.SecsToDateWithOffset(newestChunk.timeSeconds);

@@ -30,7 +30,7 @@ namespace FFMPEGStreamingTools.SessionBrokers
 				{
 					Channel = model.Channel,
 					HlsListSize = model.ListSize,
-					RequestedTime = model.RequiredTime
+				    RequestedTime = model.RequiredTime
 				}
 			);
 
